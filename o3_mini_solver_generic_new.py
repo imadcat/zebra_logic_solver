@@ -42,7 +42,7 @@ def sanitize_token(text):
     ]
     for phrase in noise_phrases:
         text = re.sub(phrase, '', text, flags=re.IGNORECASE)
-    # Remove articles (a, an, the) to lessen noise.
+    # Remove articles to lessen noise.
     text = re.sub(r'\b(a|an|the)\b', '', text)
     # Remove punctuation and extra whitespace.
     text = re.sub(r'[^a-z0-9 ]', ' ', text)
@@ -61,7 +61,7 @@ class PuzzleSolver:
         self.model = cp_model.CpModel()
 
     def parse_puzzle(self):
-        # Identify the number of houses from text (default to 6 if not found)
+        # Identify number of houses from the text (default to 6 if not found).
         m = re.search(r"There are (\d+) houses", self.puzzle_text, re.IGNORECASE)
         if m:
             self.num_houses = int(m.group(1))
@@ -104,25 +104,23 @@ class PuzzleSolver:
     def find_attribute(self, token):
         """
         Find an attribute whose sanitized text appears as a whole word in the sanitized token.
-        Uses a longest–match heuristic and a simple singular/plural check. Returns (category, attribute) or None.
+        Uses a longest–match heuristic and a simple singular/plural check. Returns (category, attribute) if found.
         """
         token_san = sanitize_token(token)
         best = None
         best_len = 0
-        # Skip if token is too generic.
         if token_san in {"", "who", "whose"}:
             return None
         for cat, attrs in self.categories.items():
             for attr in attrs:
                 attr_san = sanitize_token(attr)
-                # Whole word match:
                 pattern = rf'\b{re.escape(attr_san)}\b'
                 if re.search(pattern, token_san):
                     if len(attr_san) > best_len:
                         best = (cat, attr)
                         best_len = len(attr_san)
                 else:
-                    # Allow a simple singular/plural match.
+                    # Allow simple singular/plural check.
                     if attr_san.endswith('s'):
                         alt = attr_san[:-1]
                     else:
@@ -150,7 +148,6 @@ class PuzzleSolver:
         return unique
 
     def apply_constraint_equality(self, token1, token2):
-        # Skip if tokens are too trivial.
         if sanitize_token(token1) in {"", "who", "whose"} or sanitize_token(token2) in {"", "who", "whose"}:
             return
         a1 = self.find_attribute(token1)
@@ -182,9 +179,9 @@ class PuzzleSolver:
                 self.model.Add(self.var[cat1][attr1] < self.var[cat2][attr2])
             elif op == ">":
                 self.model.Add(self.var[cat1][attr1] > self.var[cat2][attr2])
-            elif op == "+1":  # directly left: X + 1 == Y.
+            elif op == "+1":
                 self.model.Add(self.var[cat1][attr1] + 1 == self.var[cat2][attr2])
-            elif op == "-1":  # directly right: X - 1 == Y.
+            elif op == "-1":
                 self.model.Add(self.var[cat1][attr1] - 1 == self.var[cat2][attr2])
         else:
             print(f"Warning: could not apply position constraint between '{token1}' and '{token2}' with op '{op}'")
@@ -222,9 +219,7 @@ class PuzzleSolver:
             print(f"Warning: could not apply fixed constraint for '{token}' at house {house_number}")
 
     def process_clue(self, clue):
-        # Remove any leading numbering (e.g. "1. ") and trim.
         text = re.sub(r'^\d+\.\s*', '', clue).strip()
-        # First, try a "not in" fixed–house pattern.
         ordinal_numbers = r"(?:\d+|first|second|third|fourth|fifth|sixth)"
         m_not = re.search(rf"(.+?) is not in the ({ordinal_numbers}) house", text, re.IGNORECASE)
         if m_not:
@@ -235,7 +230,6 @@ class PuzzleSolver:
                 self.apply_constraint_inequality(token, house_num)
                 return
 
-        # Fixed house pattern.
         m_fixed = re.search(rf"(.+?) is in the ({ordinal_numbers}) house", text, re.IGNORECASE)
         if m_fixed:
             token = m_fixed.group(1).strip()
@@ -245,7 +239,6 @@ class PuzzleSolver:
                 self.apply_constraint_fixed(token, house_num)
                 return
 
-        # Directly left.
         m_left = re.search(r"(.+?) is directly left of (.+)", text, re.IGNORECASE)
         if m_left:
             token1 = m_left.group(1).strip()
@@ -253,7 +246,6 @@ class PuzzleSolver:
             self.apply_constraint_position(token1, "+1", token2)
             return
 
-        # Directly right.
         m_right = re.search(r"(.+?) is directly right of (.+)", text, re.IGNORECASE)
         if m_right:
             token1 = m_right.group(1).strip()
@@ -261,7 +253,6 @@ class PuzzleSolver:
             self.apply_constraint_position(token1, "-1", token2)
             return
 
-        # Somewhere to the left / right.
         m_sl = re.search(r"(.+?) is somewhere to the left of (.+)", text, re.IGNORECASE)
         if m_sl:
             token1 = m_sl.group(1).strip()
@@ -276,7 +267,6 @@ class PuzzleSolver:
             self.apply_constraint_position(token1, ">", token2)
             return
 
-        # Next to.
         m_next = re.search(r"(.+?) and (.+?) are next to each other", text, re.IGNORECASE)
         if m_next:
             token1 = m_next.group(1).strip()
@@ -284,7 +274,6 @@ class PuzzleSolver:
             self.apply_constraint_next_to(token1, token2)
             return
 
-        # Between pattern.
         m_between = re.search(r"There are (\d+) houses? between (.+?) and (.+)", text, re.IGNORECASE)
         if m_between:
             houses_between = int(m_between.group(1))
@@ -293,7 +282,6 @@ class PuzzleSolver:
             self.apply_constraint_between(token1, token2, houses_between)
             return
 
-        # Equality pattern: "X is the Y"
         m_eq = re.search(r"(.+?) is the (.+)", text, re.IGNORECASE)
         if m_eq:
             token1 = m_eq.group(1).strip()
@@ -301,14 +289,12 @@ class PuzzleSolver:
             self.apply_constraint_equality(token1, token2)
             return
 
-        # Fallback: if exactly two attributes are mentioned (using our attribute finder), equate them.
         found = self.find_all_attributes_in_text(text)
         if len(found) == 2:
             (cat1, attr1), (cat2, attr2) = found
             self.model.Add(self.var[cat1][attr1] == self.var[cat2][attr2])
             return
 
-        # Optionally, use spaCy's noun-chunk extraction as a last resort.
         if nlp:
             doc = nlp(text)
             chunks = [chunk.text.strip() for chunk in doc.noun_chunks if chunk.text.strip()]
@@ -339,11 +325,27 @@ class PuzzleSolver:
 
     def print_solution(self, solution):
         if solution:
-            print("Solution:")
+            # Build table with header and rows.
+            headers = ["House"] + list(self.categories.keys())
+            table = []
             for house in sorted(solution.keys()):
-                print(f"House {house}:")
-                for cat, attr in solution[house].items():
-                    print(f"  {cat}: {attr}")
+                row = [str(house)]
+                for cat in self.categories.keys():
+                    row.append(solution[house].get(cat, ""))
+                table.append(row)
+            # Compute maximum width for each column.
+            col_widths = [max(len(str(row[i])) for row in ([headers] + table))
+                          for i in range(len(headers))]
+            # Print header.
+            header_line = " | ".join(str(headers[i]).ljust(col_widths[i])
+                                       for i in range(len(headers)))
+            separator_line = "-+-".join("-" * col_widths[i] for i in range(len(headers)))
+            print(header_line)
+            print(separator_line)
+            # Print each row.
+            for row in table:
+                print(" | ".join(str(row[i]).ljust(col_widths[i])
+                                   for i in range(len(headers))))
         else:
             print("No solution found.")
 
