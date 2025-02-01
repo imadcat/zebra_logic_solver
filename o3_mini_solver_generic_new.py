@@ -159,7 +159,9 @@ class PuzzleSolver:
             "smoothie": ["smoothie", "cherry", "dragonfruit", "watermelon", "lime", "blueberry", "desert"],
             "models": ["phone", "model", "iphone", "pixel", "oneplus", "samsung", "xiaomi", "huawei"],
             "hair_color": ["hair"],
-            "month": ["month", "birthday", "birth"]
+            "month": ["month", "birthday", "birth"],
+            "hobby": ["photography", "cooking", "knitting", "woodworking", "paints", "painting", "gardening"],
+            "pet": ["rabbit", "hamster", "fish", "cat", "bird", "dog"]
         }
 
     def parse_puzzle(self):
