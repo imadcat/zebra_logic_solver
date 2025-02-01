@@ -573,6 +573,8 @@ class PuzzleSolver:
 
     def solve(self):
         solver = cp_model.CpSolver()
+        # Set the number of search workers (example: 4 workers, 0 mean all cores)
+        solver.parameters.num_search_workers = 0
         status = solver.Solve(self.model)
         if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
             solution = {}
