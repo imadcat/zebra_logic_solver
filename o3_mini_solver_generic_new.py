@@ -11,7 +11,7 @@ except Exception as e:
     print("spaCy model could not be loaded; proceeding without it:", e)
     nlp = None
 
-# A mapping for ordinal words (assumes up to six houses).
+# Mapping for ordinal words (assumes up to six houses).
 ordinal_map = {
     "first": 1,
     "second": 2,
@@ -21,7 +21,7 @@ ordinal_map = {
     "sixth": 6
 }
 
-# A mapping for number words used in between–clues.
+# Mapping for number words used in between–clues.
 word_to_num = {
     "one": 1,
     "two": 2,
@@ -33,8 +33,9 @@ word_to_num = {
 
 def sanitize_token(text):
     """
-    Lowercase and remove common noise phrases from the token.
-    Also strips extra punctuation.
+    Lowercase the text, remove common noise phrases and extra punctuation.
+    This version includes additional noise phrases such as "bouquet", "vase", and "arrangement"
+    to help strip extra words from flower clues.
     """
     text = text.lower()
     noise_phrases = [
@@ -47,7 +48,10 @@ def sanitize_token(text):
         r'\bbouquet of\b',
         r'\bboquet of\b',
         r'\bvase of\b',
-        r'\bmany unique\b'
+        r'\bmany unique\b',
+        r'\bbouquet\b',
+        r'\bvase\b',
+        r'\barrangement\b'
     ]
     for phrase in noise_phrases:
         text = re.sub(phrase, '', text, flags=re.IGNORECASE)
@@ -71,20 +75,20 @@ class PuzzleSolver:
     def __init__(self, puzzle_text):
         self.puzzle_text = puzzle_text
         self.num_houses = None
-        # Categories: key = bullet line text (full), value = list of attributes.
+        # Categories: key = full bullet–line text, value = list of attributes.
         self.categories = {}
-        self.clues = []  # list of clue strings
+        self.clues = []  # List of clue strings.
         # CP variables: self.var[category][attribute] holds the house number for that attribute.
         self.var = {}
         self.model = cp_model.CpModel()
 
     def parse_puzzle(self):
+        # Identify number of houses.
         m = re.search(r"There are (\d+) houses", self.puzzle_text, re.IGNORECASE)
         self.num_houses = int(m.group(1)) if m else 6
 
         # Parse categories.
-        # Expect bullet lines like:
-        # - Each person has a unique name: Peter, Eric, Alice, Bob, Arnold, Carol
+        # Expected format for each category is a bullet line: "- <Category text>: attribute1, attribute2, ..."
         cat_pattern = re.compile(r"^[-*]\s*(.*?):\s*(.+)$")
         for line in self.puzzle_text.splitlines():
             line = line.strip()
@@ -95,7 +99,7 @@ class PuzzleSolver:
                 attrs = [x.strip() for x in attr_line.split(",") if x.strip()]
                 self.categories[cat_label] = attrs
 
-        # Parse clues: all lines after a line containing "### Clues:".
+        # Parse clues: all nonempty lines after a line containing "### Clues:".
         clues_section = False
         for line in self.puzzle_text.splitlines():
             if "### Clues:" in line:
@@ -107,6 +111,7 @@ class PuzzleSolver:
                     self.clues.append(clean)
 
     def build_variables(self):
+        # For every category (keyed by the full bullet–line text)
         for cat, attrs in self.categories.items():
             self.var[cat] = {}
             for attr in attrs:
@@ -115,8 +120,8 @@ class PuzzleSolver:
 
     def find_attribute(self, token):
         """
-        Finds an attribute whose sanitized text appears as a whole word in the token.
-        Uses a longest–match heuristic and a simple singular/plural check.
+        Find an attribute whose sanitized text appears as a whole word in the token.
+        Uses a longest–match heuristic with a simple singular/plural check.
         Returns (category, attribute) if found.
         """
         token_san = sanitize_token(token)
@@ -133,6 +138,7 @@ class PuzzleSolver:
                         best = (cat, attr)
                         best_len = len(attr_san)
                 else:
+                    # Allow a simple singular/plural match.
                     if attr_san.endswith('s'):
                         alt = attr_san[:-1]
                     else:
@@ -191,9 +197,9 @@ class PuzzleSolver:
                 self.model.Add(self.var[cat1][attr1] < self.var[cat2][attr2])
             elif op == ">":
                 self.model.Add(self.var[cat1][attr1] > self.var[cat2][attr2])
-            elif op == "+1":
+            elif op == "+1":  # directly left: X + 1 == Y.
                 self.model.Add(self.var[cat1][attr1] + 1 == self.var[cat2][attr2])
-            elif op == "-1":
+            elif op == "-1":  # directly right: X - 1 == Y.
                 self.model.Add(self.var[cat1][attr1] - 1 == self.var[cat2][attr2])
         else:
             print(f"Warning: could not apply position constraint between '{token1}' and '{token2}' with op '{op}'")
@@ -231,19 +237,10 @@ class PuzzleSolver:
             print(f"Warning: could not apply fixed constraint for '{token}' at house {house_number}")
 
     def process_clue(self, clue):
+        # Remove leading numbering (e.g. "1. ") and trim.
         text = re.sub(r'^\d+\.\s*', '', clue).strip()
         ordinal_numbers = r"(?:\d+|first|second|third|fourth|fifth|sixth)"
-        # First try an inequality with "is not in the ... house"
-        m_not = re.search(rf"(.+?) is not in the ({ordinal_numbers}) house", text, re.IGNORECASE)
-        if m_not:
-            token = m_not.group(1).strip()
-            num_str = m_not.group(2).strip().lower()
-            house_num = int(num_str) if num_str.isdigit() else ordinal_map.get(num_str)
-            if house_num is not None:
-                self.apply_constraint_inequality(token, house_num)
-                return
-
-        # Fixed house: "X is in the Nth house"
+        # Fixed house pattern.
         m_fixed = re.search(rf"(.+?) is in the ({ordinal_numbers}) house", text, re.IGNORECASE)
         if m_fixed:
             token = m_fixed.group(1).strip()
@@ -253,7 +250,17 @@ class PuzzleSolver:
                 self.apply_constraint_fixed(token, house_num)
                 return
 
-        # Directly left
+        # Inequality fixed house.
+        m_not = re.search(rf"(.+?) is not in the ({ordinal_numbers}) house", text, re.IGNORECASE)
+        if m_not:
+            token = m_not.group(1).strip()
+            num_str = m_not.group(2).strip().lower()
+            house_num = int(num_str) if num_str.isdigit() else ordinal_map.get(num_str)
+            if house_num is not None:
+                self.apply_constraint_inequality(token, house_num)
+                return
+
+        # Directly left.
         m_left = re.search(r"(.+?) is directly left of (.+)", text, re.IGNORECASE)
         if m_left:
             token1 = m_left.group(1).strip()
@@ -261,7 +268,7 @@ class PuzzleSolver:
             self.apply_constraint_position(token1, "+1", token2)
             return
 
-        # Directly right
+        # Directly right.
         m_right = re.search(r"(.+?) is directly right of (.+)", text, re.IGNORECASE)
         if m_right:
             token1 = m_right.group(1).strip()
@@ -269,7 +276,7 @@ class PuzzleSolver:
             self.apply_constraint_position(token1, "-1", token2)
             return
 
-        # Somewhere to the left/right
+        # Somewhere to the left.
         m_sl = re.search(r"(.+?) is somewhere to the left of (.+)", text, re.IGNORECASE)
         if m_sl:
             token1 = m_sl.group(1).strip()
@@ -277,6 +284,7 @@ class PuzzleSolver:
             self.apply_constraint_position(token1, "<", token2)
             return
 
+        # Somewhere to the right.
         m_sr = re.search(r"(.+?) is somewhere to the right of (.+)", text, re.IGNORECASE)
         if m_sr:
             token1 = m_sr.group(1).strip()
@@ -284,7 +292,7 @@ class PuzzleSolver:
             self.apply_constraint_position(token1, ">", token2)
             return
 
-        # Next to
+        # Next to.
         m_next = re.search(r"(.+?) and (.+?) are next to each other", text, re.IGNORECASE)
         if m_next:
             token1 = m_next.group(1).strip()
@@ -292,7 +300,7 @@ class PuzzleSolver:
             self.apply_constraint_next_to(token1, token2)
             return
 
-        # Between pattern: also allow number words like "two"
+        # Between pattern: also accepts number words.
         m_between = re.search(rf"There are (\d+|one|two|three|four|five|six) houses? between (.+?) and (.+)", text, re.IGNORECASE)
         if m_between:
             num_str = m_between.group(1).strip().lower()
@@ -302,7 +310,7 @@ class PuzzleSolver:
             self.apply_constraint_between(token1, token2, houses_between)
             return
 
-        # Equality pattern: "X is the Y"
+        # Equality pattern.
         m_eq = re.search(r"(.+?) is the (.+)", text, re.IGNORECASE)
         if m_eq:
             token1 = m_eq.group(1).strip()
@@ -310,14 +318,13 @@ class PuzzleSolver:
             self.apply_constraint_equality(token1, token2)
             return
 
-        # Fallback: if exactly two attributes are mentioned, equate them.
+        # Fallback: if exactly two attributes are found, equate them.
         found = self.find_all_attributes_in_text(text)
         if len(found) == 2:
             (cat1, attr1), (cat2, attr2) = found
             self.model.Add(self.var[cat1][attr1] == self.var[cat2][attr2])
             return
 
-        # Optionally, use spaCy's noun-chunk extraction as a last resort.
         if nlp:
             doc = nlp(text)
             chunks = [chunk.text.strip() for chunk in doc.noun_chunks if chunk.text.strip()]
@@ -348,6 +355,7 @@ class PuzzleSolver:
 
     def print_solution(self, solution):
         if solution:
+            # Build table with "House" and the shortened category names.
             headers = ["House"] + [shorten_category(cat) for cat in self.categories.keys()]
             table = []
             for house in sorted(solution.keys()):
@@ -355,6 +363,7 @@ class PuzzleSolver:
                 for cat in self.categories.keys():
                     row.append(solution[house].get(cat, ""))
                 table.append(row)
+            # Compute column widths.
             col_widths = [max(len(str(row[i])) for row in ([headers] + table))
                           for i in range(len(headers))]
             header_line = " | ".join(str(headers[i]).ljust(col_widths[i]) for i in range(len(headers)))
