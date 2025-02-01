@@ -1,0 +1,3 @@
+ortools==9.11
+spacy==3.7.5
+pandas==2.0.2
