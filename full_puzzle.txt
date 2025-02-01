@@ -1,34 +1,33 @@
 There are 6 houses, numbered 1 to 6 from left to right, as seen from across the street. Each house is occupied by a different person. Each house has a unique attribute for each of the following characteristics:
-- Each person has a unique name: Peter, Eric, Carol, Arnold, Bob, Alice
-- Each person has a favorite color: blue, red, green, yellow, purple, white
-- Each person prefers a unique type of vacation: city, beach, cruise, cultural, mountain, camping
-- People have unique hair colors: blonde, black, gray, brown, red, auburn
-- Each person has an occupation: artist, lawyer, engineer, teacher, doctor, nurse
-- They all have a unique favorite flower: roses, iris, daffodils, carnations, tulips, lilies
+- Each person has a unique name: Peter, Alice, Bob, Carol, Arnold, Eric
+- Each person has an occupation: engineer, doctor, lawyer, artist, nurse, teacher
+- Everyone has something unique for lunch: soup, stew, grilled cheese, spaghetti, pizza, stir fry
+- Everyone has a favorite smoothie: cherry, dragonfruit, watermelon, lime, blueberry, desert
+- Each person prefers a unique type of vacation: camping, cultural, city, cruise, beach, mountain
+- People use unique phone models: iphone 13, google pixel 6, oneplus 9, samsung galaxy s21, xiaomi mi 11, huawei p50
 
 ### Clues:
-1. The person who loves a bouquet of daffodils is the person who is an artist.
-2. The person who enjoys camping trips is the person whose favorite color is green.
-3. The person who has brown hair is in the first house.
-4. The person who loves blue is somewhere to the right of the person who enjoys mountain retreats.
-5. The person who loves the vase of tulips is the person who enjoys mountain retreats.
-6. Eric is in the second house.
-7. The person who likes going on cruises and Arnold are next to each other.
-8. The person who loves yellow and the person who enjoys camping trips are next to each other.
-9. The person who loves yellow is somewhere to the left of Peter.
-10. The person who is a lawyer and Arnold are next to each other.
-11. The person who has red hair is Arnold.
-12. Alice is the person who is a doctor.
-13. The person who loves purple is directly left of the person who loves the vase of tulips.
-14. The person who has brown hair is somewhere to the left of the person who is an engineer.
-15. The person who has gray hair is somewhere to the left of the person whose favorite color is red.
-16. The person who is an artist is somewhere to the right of Arnold.
-17. Alice is the person who loves the boquet of lilies.
-18. The person whose favorite color is red is directly left of the person who prefers city breaks.
-19. The person who prefers city breaks is somewhere to the right of the person who has blonde hair.
-20. There is one house between Alice and Bob.
-21. The person who loves the rose bouquet is directly left of the person who is a nurse.
-22. The person whose favorite color is green is in the fourth house.
-23. The person who loves beach vacations is somewhere to the left of the person who has red hair.
-24. The person who has black hair is Alice.
-25. The person who loves blue is the person who loves a carnations arrangement.
+1. The person who likes Cherry smoothies is directly left of the person who enjoys camping trips.
+2. The person who is a lawyer is the person who uses a Xiaomi Mi 11.
+3. The person who is a doctor is Eric.
+4. The person who is a doctor and the Desert smoothie lover are next to each other.
+5. The person who is an artist is the person who prefers city breaks.
+6. The person who loves beach vacations is Alice.
+7. There are two houses between the person who is a pizza lover and the person who uses a Huawei P50.
+8. The person who uses a Xiaomi Mi 11 is the person who enjoys camping trips.
+9. The person who is an artist is directly left of the person who loves eating grilled cheese.
+10. The person who uses a Google Pixel 6 is in the first house.
+11. There is one house between the person who is a teacher and the person who loves stir fry.
+12. There are two houses between the person who is a pizza lover and the person who is an engineer.
+13. The person who is a pizza lover is somewhere to the left of the person who loves eating grilled cheese.
+14. The Watermelon smoothie lover is the person who uses a Xiaomi Mi 11.
+15. The person who loves eating grilled cheese is Carol.
+16. Alice is the person who drinks Blueberry smoothies.
+17. The person who likes Cherry smoothies is the person who loves the stew.
+18. The person who loves the soup is the person who uses a Samsung Galaxy S21.
+19. The person who uses an iPhone 13 is directly left of the Dragonfruit smoothie lover.
+20. The person who loves the stew is somewhere to the left of Peter.
+21. Arnold is somewhere to the right of the Desert smoothie lover.
+22. The person who likes going on cruises is the person who uses a Google Pixel 6.
+23. The person who goes on cultural tours is not in the fifth house.
+24. The person who is a teacher is Alice.
