@@ -95,11 +95,22 @@ def normalize_token(token, candidate_key=None):
                 token_norm = token_norm.replace(full, abbr)
     return token_norm
 
+def lemmatize_text(text):
+    """
+    If spaCy is available, return a lemmatized version of the text.
+    Otherwise, return the text unmodified.
+    """
+    if nlp is not None:
+        doc = nlp(text)
+        return " ".join([token.lemma_ for token in doc])
+    return text
+
 def get_category_key(category):
     """
     Determines a unique key for a category based on its description.
-    For example, if the description mentions "name", "flower", or "birthday",
-    then the assigned keys will be "name", "flower", or "month".
+    For example, if the description mentions "name", "flower", "smoothie", "hobby" or "pet",
+    then the assigned keys will be "name", "flower", "smoothie", "hobby", or "pet".
+    For "birthday" or "month", the key will be "month", and for "nationalities" the key is "nationalities".
     Otherwise, we default to the last word.
     """
     cat_lower = category.lower()
@@ -119,8 +130,10 @@ def get_category_key(category):
         return "lunch"
     if "smoothie" in cat_lower:
         return "smoothie"
-    if "phone" in cat_lower or "model" in cat_lower:
-        return "models"
+    if "hobby" in cat_lower:
+        return "hobby"
+    if "pet" in cat_lower:
+        return "pet"
     if "birthday" in cat_lower or "month" in cat_lower:
         return "month"
     if "nationalities" in cat_lower:
@@ -139,7 +152,7 @@ class PuzzleSolver:
     def __init__(self, puzzle_text, debug=False):
         self.puzzle_text = puzzle_text
         self.num_houses = None
-        # Categories: key = full bullet–line text, value = list of attributes.
+        # Categories: key = full bullet‐line text, value = list of attributes.
         self.categories = {}
         # Mapping from the full category description to a computed unique key.
         self.category_keys = {}
@@ -149,7 +162,7 @@ class PuzzleSolver:
         self.model = cp_model.CpModel()
         self.debug = debug
 
-        # Extend the keywords with an entry for nationalities.
+        # Extend the keywords with an entry for various categories.
         self.category_keywords = {
             "nationalities": ["swede", "norwegian", "german", "chinese", "dane", "brit", "danish", "swedish", "british"],
             "name": ["name"],
@@ -210,7 +223,10 @@ class PuzzleSolver:
         """
         Try to match an attribute within the token.
         Uses the configured keywords and a longest-match heuristic.
+        Now we also attempt to use lemmatization (if spaCy is available) and custom mapping
+        for hobby-related words (e.g. mapping 'paints' or 'paint' to 'painting').
         """
+        # Sanitize the input token.
         token_san = sanitize_token(token)
         candidate_key = None
         for key, kws in self.category_keywords.items():
@@ -220,7 +236,20 @@ class PuzzleSolver:
                     print(f"Debug: Token '{token}' suggests category key '{candidate_key}' based on keywords {kws}.")
                 break
 
-        # If the token belongs to a category needing normalization, do it.
+        # Use lemmatization to help with variations.
+        token_lemmatized = token_san
+        token_lemmatized = lemmatize_text(token_san)
+        if self.debug:
+            print(f"Debug: Lemmatized token for '{token}': '{token_lemmatized}'")
+
+        # For hobby clues, map any variant of 'paint' to 'painting'
+        if candidate_key == "hobby":
+            if "paint" in token_lemmatized:
+                token_lemmatized = token_lemmatized.replace("paint", "painting")
+                if self.debug:
+                    print(f"Debug: Adjusted hobby token to '{token_lemmatized}' for proper matching.")
+
+        # Apply normalization if the candidate belongs to month or nationalities.
         if candidate_key in ["month", "nationalities"]:
             token_san = normalize_token(token_san, candidate_key)
             if self.debug:
@@ -238,23 +267,25 @@ class PuzzleSolver:
 
         best = None
         best_len = 0
+        # Check both the sanitized and the lemmatized forms for matching.
         for cat, attrs in categories_to_search:
             for attr in attrs:
                 attr_san = sanitize_token(attr)
                 if candidate_key in ["month", "nationalities"]:
                     attr_san = normalize_token(attr_san, candidate_key)
                 pattern = rf'\b{re.escape(attr_san)}\b'
-                if re.search(pattern, token_san):
+                if re.search(pattern, token_san) or re.search(pattern, token_lemmatized):
                     if len(attr_san) > best_len:
                         best = (cat, attr)
                         best_len = len(attr_san)
                 else:
+                    # Try an alternate pattern that handles plural forms.
                     alt = attr_san[:-1] if attr_san.endswith('s') else attr_san + 's'
-                    if re.search(rf'\b{re.escape(alt)}\b', token_san):
+                    if re.search(rf'\b{re.escape(alt)}\b', token_san) or re.search(rf'\b{re.escape(alt)}\b', token_lemmatized):
                         if len(attr_san) > best_len:
                             best = (cat, attr)
                             best_len = len(attr_san)
-        # Fallback for month or nationalities if no match was found
+        # Fallback for months or nationalities if no match was found.
         if best is None and candidate_key in ["month", "nationalities"]:
             if self.debug:
                 print(f"Debug: Fallback for {candidate_key}: no match found in token '{token_san}'. Trying explicit substrings.")
@@ -288,7 +319,7 @@ class PuzzleSolver:
                     break
 
         if best is None and self.debug:
-            print(f"DEBUG: No attribute found for token '{token}' (sanitized: '{token_san}').")
+            print(f"DEBUG: No attribute found for token '{token}' (sanitized: '{token_san}', lemmatized: '{token_lemmatized}').")
         return best
 
     def find_all_attributes_in_text(self, text):
