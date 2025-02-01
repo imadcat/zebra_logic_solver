@@ -35,7 +35,8 @@ def sanitize_token(text):
     """
     Lowercase the text, remove common noise phrases and extra punctuation.
     This version includes additional noise phrases such as "bouquet", "vase", and "arrangement"
-    to help strip extra words from flower clues.
+    so that phrases like "rose bouquet" (in clue 21), "bouquet of daffodils" (clue 1),
+    "vase of tulips" (clue 5) and "boquet of lilies" (clue 17) are normalized to their underlying names.
     """
     text = text.lower()
     noise_phrases = [
@@ -88,7 +89,8 @@ class PuzzleSolver:
         self.num_houses = int(m.group(1)) if m else 6
 
         # Parse categories.
-        # Expected format for each category is a bullet line: "- <Category text>: attribute1, attribute2, ..."
+        # Expected format for each category is a bullet line:
+        # "- <Category text>: attribute1, attribute2, attribute3, ..."
         cat_pattern = re.compile(r"^[-*]\s*(.*?):\s*(.+)$")
         for line in self.puzzle_text.splitlines():
             line = line.strip()
@@ -318,20 +320,7 @@ class PuzzleSolver:
             self.apply_constraint_equality(token1, token2)
             return
 
-        # Fallback: if exactly two attributes are found, equate them.
-        found = self.find_all_attributes_in_text(text)
-        if len(found) == 2:
-            (cat1, attr1), (cat2, attr2) = found
-            self.model.Add(self.var[cat1][attr1] == self.var[cat2][attr2])
-            return
-
-        if nlp:
-            doc = nlp(text)
-            chunks = [chunk.text.strip() for chunk in doc.noun_chunks if chunk.text.strip()]
-            if len(chunks) >= 2:
-                self.apply_constraint_equality(chunks[0], chunks[1])
-                return
-
+        # Removed fallback equality (and spaCy fallback) in order to avoid adding ambiguous constraints.
         print(f"Unprocessed clue: {text}")
 
     def process_all_clues(self):
