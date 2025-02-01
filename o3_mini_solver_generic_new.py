@@ -3,10 +3,10 @@ import sys
 import argparse
 from ortools.sat.python import cp_model
 
-# Try loading spaCy.
+# Try loading spaCy with the transformer-based model.
 try:
     import spacy
-    nlp = spacy.load("en_core_web_sm")
+    nlp = spacy.load("en_core_web_trf")
 except Exception as e:
     print("spaCy model could not be loaded; proceeding without it:", e)
     nlp = None
@@ -34,9 +34,6 @@ word_to_num = {
 def sanitize_token(text):
     """
     Lowercase the text, remove common noise phrases and extra punctuation.
-    This version includes additional noise phrases such as "bouquet", "vase", and "arrangement"
-    so that phrases like "rose bouquet", "bouquet of daffodils", "vase of tulips", etc.
-    are normalized to their underlying names.
     """
     text = text.lower()
     noise_phrases = [
@@ -56,16 +53,39 @@ def sanitize_token(text):
     ]
     for phrase in noise_phrases:
         text = re.sub(phrase, '', text, flags=re.IGNORECASE)
-    # Remove articles
     text = re.sub(r'\b(a|an|the)\b', '', text)
     text = re.sub(r'[^a-z0-9 ]', ' ', text)
     text = re.sub(r'\s+', ' ', text)
     return text.strip()
 
+def normalize_token(token, candidate_key=None):
+    """
+    If candidate_key is 'month', normalize full month names to their abbreviated versions.
+    """
+    token_norm = token.lower()
+    if candidate_key == "month":
+        month_map = {
+            "january": "jan",
+            "february": "feb",
+            "march": "mar",
+            "april": "april",
+            "may": "may",
+            "june": "jun",
+            "july": "jul",
+            "august": "aug",
+            "september": "sept",
+            "october": "oct",
+            "november": "nov",
+            "december": "dec",
+        }
+        for full, abbr in month_map.items():
+            if full in token_norm:
+                token_norm = token_norm.replace(full, abbr)
+    return token_norm
+
 def get_category_key(category):
     """
     Determines a unique key for a category based on its description.
-    This mapping is configurable—you can adjust or add more rules as needed.
     """
     cat_lower = category.lower()
     if "favorite" in cat_lower and "color" in cat_lower:
@@ -86,7 +106,8 @@ def get_category_key(category):
         return "smoothie"
     if "phone" in cat_lower or "model" in cat_lower:
         return "models"
-    # fallback: default to the last word
+    if "birthday" in cat_lower or "month" in cat_lower:
+        return "month"
     tokens = cat_lower.split()
     return tokens[-1] if tokens else cat_lower
 
@@ -106,27 +127,29 @@ class PuzzleSolver:
         # Mapping from full category descriptions to computed unique keys.
         self.category_keys = {}
         self.clues = []  # List of clue strings.
-        # CP variables: self.var[category][attribute] holds the house number for that attribute.
+        # CP variables: self.var[category][attribute] holds the house number.
         self.var = {}
         self.model = cp_model.CpModel()
         self.debug = debug
 
-        # Mapping from category keys to extra keywords used in find_attribute.
+        # Mapping from category keys to extra keywords used in extraction.
         self.category_keywords = {
-            "favorite_color": ["favorite", "color"],
-            "hair_color": ["hair"],
             "name": ["name"],
             "vacation": ["vacation", "trip", "break"],
             "occupation": ["occupation", "job"],
             "lunch": ["lunch", "soup", "stew", "grilled", "cheese", "spaghetti", "pizza", "stir"],
             "smoothie": ["smoothie", "cherry", "dragonfruit", "watermelon", "lime", "blueberry", "desert"],
-            "models": ["phone", "model", "iphone", "pixel", "oneplus", "samsung", "xiaomi", "huawei"]
+            "models": ["phone", "model", "iphone", "pixel", "oneplus", "samsung", "xiaomi", "huawei"],
+            "hair_color": ["hair"],
+            "month": ["month", "birthday", "birth"]
         }
 
     def parse_puzzle(self):
+        # Determine number of houses.
         m = re.search(r"There are (\d+) houses", self.puzzle_text, re.IGNORECASE)
         self.num_houses = int(m.group(1)) if m else 6
 
+        # Parse categories (expects bullet lines in the puzzle description)
         cat_pattern = re.compile(r"^[-*]\s*(.*?):\s*(.+)$")
         for line in self.puzzle_text.splitlines():
             line = line.strip()
@@ -141,6 +164,7 @@ class PuzzleSolver:
                     print(f"Parsed category: '{cat_label}' with attributes {attrs}")
                     print(f"Assigned key for category: {self.category_keys[cat_label]}")
 
+        # Parse clues (all nonempty lines after "### Clues:")
         clues_section = False
         for line in self.puzzle_text.splitlines():
             if "### Clues:" in line:
@@ -164,9 +188,8 @@ class PuzzleSolver:
 
     def find_attribute(self, token):
         """
-        Try to match an attribute in the token.
-        First, decide on a candidate category key (if any) and restrict the search.
-        Uses a longest-match heuristic.
+        Try to match an attribute within the token.
+        Uses the configured keywords and a longest-match heuristic.
         """
         token_san = sanitize_token(token)
         candidate_key = None
@@ -177,6 +200,13 @@ class PuzzleSolver:
                     print(f"Debug: Token '{token}' suggests category key '{candidate_key}' based on keywords {kws}.")
                 break
 
+        # If this is a birthday/month token, normalize it.
+        if candidate_key == "month":
+            token_san = normalize_token(token_san, candidate_key)
+            if self.debug:
+                print(f"Debug: Normalized token for month: '{token_san}'")
+
+        # Determine which categories to search.
         if candidate_key:
             categories_to_search = [(cat, attrs) for cat, attrs in self.categories.items()
                                       if self.category_keys.get(cat) == candidate_key]
@@ -191,6 +221,8 @@ class PuzzleSolver:
         for cat, attrs in categories_to_search:
             for attr in attrs:
                 attr_san = sanitize_token(attr)
+                if candidate_key == "month":
+                    attr_san = normalize_token(attr_san, candidate_key)
                 pattern = rf'\b{re.escape(attr_san)}\b'
                 if re.search(pattern, token_san):
                     if len(attr_san) > best_len:
@@ -202,23 +234,33 @@ class PuzzleSolver:
                         if len(attr_san) > best_len:
                             best = (cat, attr)
                             best_len = len(attr_san)
-        if best is None and candidate_key is not None:
+        # Fallback: if no attribute was found for a month clue, explicitly search for abbreviated month values.
+        if best is None and candidate_key == "month":
             if self.debug:
-                print(f"Debug: No attribute found in candidate categories for token '{token}'; falling back to global search.")
-            for cat, attrs in self.categories.items():
-                for attr in attrs:
-                    attr_san = sanitize_token(attr)
-                    pattern = rf'\b{re.escape(attr_san)}\b'
-                    if re.search(pattern, token_san):
-                        if len(attr_san) > best_len:
-                            best = (cat, attr)
-                            best_len = len(attr_san)
-                    else:
-                        alt = attr_san[:-1] if attr_san.endswith('s') else attr_san + 's'
-                        if re.search(rf'\b{re.escape(alt)}\b', token_san):
-                            if len(attr_san) > best_len:
+                print(f"Debug: Fallback for month: no match found in token '{token_san}'. Trying explicit month substrings.")
+            month_map = {
+                "jan": "jan", "feb": "feb", "mar": "mar",
+                "april": "april", "may": "may", "jun": "jun",
+                "jul": "jul", "aug": "aug", "sept": "sept",
+                "oct": "oct", "nov": "nov", "dec": "dec",
+            }
+            for key_abbr in month_map.values():
+                if re.search(rf'\b{re.escape(key_abbr)}\b', token_san):
+                    for cat, attrs in categories_to_search:
+                        # Check if the abbreviated month is one of the attributes.
+                        for attr in attrs:
+                            attr_san = normalize_token(sanitize_token(attr), candidate_key)
+                            if attr_san == key_abbr:
                                 best = (cat, attr)
                                 best_len = len(attr_san)
+                                if self.debug:
+                                    print(f"Debug: Found fallback match: '{attr_san}' in token '{token_san}'.")
+                                break
+                        if best is not None:
+                            break
+                if best is not None:
+                    break
+
         if best is None and self.debug:
             print(f"DEBUG: No attribute found for token '{token}' (sanitized: '{token_san}').")
         return best
@@ -238,6 +280,33 @@ class PuzzleSolver:
                 unique.append(pair)
                 seen.add(pair)
         return unique
+
+    def spacy_equality_extraction(self, text):
+        """
+        Uses spaCy's dependency parse (and as fallback, NER) to extract two attribute phrases.
+        """
+        if nlp is None:
+            return None, None
+        doc = nlp(text)
+        # Look for a copular construction (root verb "be")
+        for token in doc:
+            if token.lemma_ == "be" and token.dep_ == "ROOT":
+                subj = None
+                attr = None
+                for child in token.children:
+                    if child.dep_ in ["nsubj", "nsubjpass"]:
+                        subj = child
+                    if child.dep_ in ["attr", "acomp"]:
+                        attr = child
+                if subj and attr:
+                    subject_span = doc[subj.left_edge.i : subj.right_edge.i+1].text
+                    attr_span = doc[attr.left_edge.i : attr.right_edge.i+1].text
+                    return subject_span, attr_span
+        # Fallback: return the first two named entities found.
+        ents = list(doc.ents)
+        if len(ents) >= 2:
+            return ents[0].text, ents[1].text
+        return None, None
 
     def apply_constraint_equality(self, token1, token2):
         a1 = self.find_attribute(token1)
@@ -415,7 +484,6 @@ class PuzzleSolver:
         if m_eq:
             token1 = m_eq.group(1).strip()
             token2 = m_eq.group(2).strip()
-            # Remove common filler phrases.
             token1 = re.sub(r"^(the person who\s+|who\s+)", "", token1, flags=re.IGNORECASE).strip()
             token2 = re.sub(r"^(a\s+|an\s+|the\s+)", "", token2, flags=re.IGNORECASE).strip()
             a1 = self.find_attribute(token1)
@@ -425,14 +493,15 @@ class PuzzleSolver:
                 return
             else:
                 if self.debug:
-                    print("Equality regex failed to extract valid attributes, falling back to find_all_attributes_in_text")
-                attrs = self.find_all_attributes_in_text(text)
-                if len(attrs) >= 2:
-                    a1, a2 = attrs[0], attrs[1]
-                    self.model.Add(self.var[a1[0]][a1[1]] == self.var[a2[0]][a2[1]])
-                    if self.debug:
-                        print(f"Added equality constraint (fallback): [{a1[0]}][{a1[1]}] == [{a2[0]}][{a2[1]}]")
-                    return
+                    print("Equality regex failed to extract valid attributes using token cleaning.")
+        # Fallback: use spaCy to extract equality.
+        if nlp is not None:
+            left, right = self.spacy_equality_extraction(text)
+            if left and right:
+                if self.debug:
+                    print(f"spaCy extracted equality: '{left}' == '{right}'")
+                self.apply_constraint_equality(left, right)
+                return
 
         if self.debug:
             print(f"Unprocessed clue: {text}")
@@ -479,7 +548,9 @@ class PuzzleSolver:
             print("No solution found.")
 
 def main():
-    parser = argparse.ArgumentParser(description="Robust Generic Logic Puzzle Solver with Configurable Category Keys")
+    parser = argparse.ArgumentParser(
+        description="Robust Generic Logic Puzzle Solver with spaCy-enhanced Constraint Extraction (using en_core_web_trf)"
+    )
     parser.add_argument("puzzle_file", help="Path to the puzzle description text file")
     parser.add_argument("--debug", action="store_true", help="Enable debug output")
     args = parser.parse_args()
