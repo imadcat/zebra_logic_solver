@@ -35,8 +35,8 @@ def sanitize_token(text):
     """
     Lowercase the text, remove common noise phrases and extra punctuation.
     This version includes additional noise phrases such as "bouquet", "vase", and "arrangement"
-    so that phrases like "rose bouquet" (in clue 21), "bouquet of daffodils" (clue 1),
-    "vase of tulips" (clue 5) and "boquet of lilies" (clue 17) are normalized to their underlying names.
+    so that phrases like "rose bouquet", "bouquet of daffodils", "vase of tulips", etc.
+    are normalized to their underlying names.
     """
     text = text.lower()
     noise_phrases = [
@@ -63,17 +63,30 @@ def sanitize_token(text):
 
 def shorten_category(category):
     """
-    Returns the last word of the category string, lowercased with punctuation stripped.
-    Assumes that the key word is always the last word.
+    Returns a short, distinct key for the category.
+    
+    Rather than simply taking the last word of the category description,
+    this function applies heuristics based on keywords.
+    
+    For example:
+      - "Each person has a unique favorite color: blue, red, green, yellow, purple, white" 
+         returns "favorite color"
+      - "People have unique hair colors" returns "hair color"
     """
-    tokens = category.strip().split()
-    if tokens:
-        return tokens[-1].strip(" ,:").lower()
+    category_lower = category.lower()
+    if "hair" in category_lower:
+        return "hair color"
+    elif "favorite" in category_lower and "color" in category_lower:
+        return "favorite color"
     else:
-        return category.lower()
+        tokens = category.strip().split()
+        if tokens:
+            return tokens[-1].strip(" ,:").lower()
+        else:
+            return category.lower()
 
 class PuzzleSolver:
-    def __init__(self, puzzle_text):
+    def __init__(self, puzzle_text, debug=False):
         self.puzzle_text = puzzle_text
         self.num_houses = None
         # Categories: key = full bullet–line text, value = list of attributes.
@@ -82,6 +95,7 @@ class PuzzleSolver:
         # CP variables: self.var[category][attribute] holds the house number for that attribute.
         self.var = {}
         self.model = cp_model.CpModel()
+        self.debug = debug
 
     def parse_puzzle(self):
         # Identify number of houses.
@@ -100,6 +114,8 @@ class PuzzleSolver:
                 attr_line = m.group(2).strip()
                 attrs = [x.strip() for x in attr_line.split(",") if x.strip()]
                 self.categories[cat_label] = attrs
+                if self.debug:
+                    print(f"Parsed category: '{cat_label}' with attributes {attrs}")
 
         # Parse clues: all nonempty lines after a line containing "### Clues:".
         clues_section = False
@@ -111,6 +127,8 @@ class PuzzleSolver:
                 clean = line.strip()
                 if clean:
                     self.clues.append(clean)
+                    if self.debug:
+                        print(f"Parsed clue: {clean}")
 
     def build_variables(self):
         # For every category (keyed by the full bullet–line text)
@@ -118,20 +136,32 @@ class PuzzleSolver:
             self.var[cat] = {}
             for attr in attrs:
                 self.var[cat][attr] = self.model.NewIntVar(1, self.num_houses, f"{cat}_{attr}")
+            # All attributes in this category must occupy different houses.
             self.model.AddAllDifferent(list(self.var[cat].values()))
+            if self.debug:
+                print(f"Added all-different constraint for category '{cat}'.")
 
     def find_attribute(self, token):
         """
         Find an attribute whose sanitized text appears as a whole word in the token.
-        Uses a longest–match heuristic with a simple singular/plural check.
+        Uses a longest-match heuristic with a simple singular/plural check.
+        If the token includes the keyword "hair", restrict the search to categories that mention "hair".
         Returns (category, attribute) if found.
         """
         token_san = sanitize_token(token)
+        hair_hint = "hair" in token_san
         best = None
         best_len = 0
-        if token_san in {"", "who", "whose"}:
-            return None
-        for cat, attrs in self.categories.items():
+
+        # If "hair" is mentioned, restrict search to categories with "hair" in their name.
+        if hair_hint:
+            categories_to_search = [(cat, attrs) for cat, attrs in self.categories.items() if "hair" in cat.lower()]
+            if self.debug:
+                print(f"Debug: Token '{token}' indicates hair; searching in categories: {[cat for cat, _ in categories_to_search]}")
+        else:
+            categories_to_search = self.categories.items()
+
+        for cat, attrs in categories_to_search:
             for attr in attrs:
                 attr_san = sanitize_token(attr)
                 pattern = rf'\b{re.escape(attr_san)}\b'
@@ -149,43 +179,54 @@ class PuzzleSolver:
                         if len(attr_san) > best_len:
                             best = (cat, attr)
                             best_len = len(attr_san)
+        # Fallback to global search if nothing was found in the restricted search.
+        if best is None and hair_hint:
+            if self.debug:
+                print(f"Debug: No attribute found in hair categories for token '{token}'; falling back to full search.")
+            for cat, attrs in self.categories.items():
+                for attr in attrs:
+                    attr_san = sanitize_token(attr)
+                    pattern = rf'\b{re.escape(attr_san)}\b'
+                    if re.search(pattern, token_san):
+                        if len(attr_san) > best_len:
+                            best = (cat, attr)
+                            best_len = len(attr_san)
+                    else:
+                        if attr_san.endswith('s'):
+                            alt = attr_san[:-1]
+                        else:
+                            alt = attr_san + 's'
+                        if re.search(rf'\b{re.escape(alt)}\b', token_san):
+                            if len(attr_san) > best_len:
+                                best = (cat, attr)
+                                best_len = len(attr_san)
+        if best is None and self.debug:
+            print(f"DEBUG: No attribute found for token '{token}' (sanitized: '{token_san}').")
         return best
 
-    def find_all_attributes_in_text(self, text):
-        found = []
-        text_san = sanitize_token(text)
-        for cat, attrs in self.categories.items():
-            for attr in attrs:
-                attr_san = sanitize_token(attr)
-                if re.search(rf'\b{re.escape(attr_san)}\b', text_san):
-                    found.append((cat, attr))
-        unique = []
-        seen = set()
-        for pair in found:
-            if pair not in seen:
-                unique.append(pair)
-                seen.add(pair)
-        return unique
-
     def apply_constraint_equality(self, token1, token2):
-        if sanitize_token(token1) in {"", "who", "whose"} or sanitize_token(token2) in {"", "who", "whose"}:
-            return
         a1 = self.find_attribute(token1)
         a2 = self.find_attribute(token2)
         if a1 and a2:
             cat1, attr1 = a1
             cat2, attr2 = a2
             self.model.Add(self.var[cat1][attr1] == self.var[cat2][attr2])
+            if self.debug:
+                print(f"Added constraint: [{cat1}][{attr1}] == [{cat2}][{attr2}]")
         else:
-            print(f"Warning: could not apply equality between '{token1}' and '{token2}'")
+            if self.debug:
+                print(f"Warning: could not apply equality between '{token1}' and '{token2}'")
 
     def apply_constraint_inequality(self, token, house_number):
         a1 = self.find_attribute(token)
         if a1:
             cat, attr = a1
             self.model.Add(self.var[cat][attr] != house_number)
+            if self.debug:
+                print(f"Added constraint: [{cat}][{attr}] != {house_number}")
         else:
-            print(f"Warning: could not apply inequality for '{token}' at house {house_number}")
+            if self.debug:
+                print(f"Warning: could not apply inequality for '{token}' at house {house_number}")
 
     def apply_constraint_position(self, token1, op, token2):
         a1 = self.find_attribute(token1)
@@ -195,16 +236,27 @@ class PuzzleSolver:
             cat2, attr2 = a2
             if op == "==":
                 self.model.Add(self.var[cat1][attr1] == self.var[cat2][attr2])
+                if self.debug:
+                    print(f"Added constraint: [{cat1}][{attr1}] == [{cat2}][{attr2}]")
             elif op == "<":
                 self.model.Add(self.var[cat1][attr1] < self.var[cat2][attr2])
+                if self.debug:
+                    print(f"Added constraint: [{cat1}][{attr1}] < [{cat2}][{attr2}]")
             elif op == ">":
                 self.model.Add(self.var[cat1][attr1] > self.var[cat2][attr2])
+                if self.debug:
+                    print(f"Added constraint: [{cat1}][{attr1}] > [{cat2}][{attr2}]")
             elif op == "+1":  # directly left: X + 1 == Y.
                 self.model.Add(self.var[cat1][attr1] + 1 == self.var[cat2][attr2])
+                if self.debug:
+                    print(f"Added constraint: [{cat1}][{attr1}] + 1 == [{cat2}][{attr2}]")
             elif op == "-1":  # directly right: X - 1 == Y.
                 self.model.Add(self.var[cat1][attr1] - 1 == self.var[cat2][attr2])
+                if self.debug:
+                    print(f"Added constraint: [{cat1}][{attr1}] - 1 == [{cat2}][{attr2}]")
         else:
-            print(f"Warning: could not apply position constraint between '{token1}' and '{token2}' with op '{op}'")
+            if self.debug:
+                print(f"Warning: could not apply position constraint between '{token1}' and '{token2}' with op '{op}'")
 
     def apply_constraint_next_to(self, token1, token2):
         a1 = self.find_attribute(token1)
@@ -215,8 +267,11 @@ class PuzzleSolver:
             diff = self.model.NewIntVar(0, self.num_houses, f"diff_{attr1}_{attr2}")
             self.model.AddAbsEquality(diff, self.var[cat1][attr1] - self.var[cat2][attr2])
             self.model.Add(diff == 1)
+            if self.debug:
+                print(f"Added next-to constraint: |[{cat1}][{attr1}] - [{cat2}][{attr2}]| == 1")
         else:
-            print(f"Warning: could not apply next-to constraint between '{token1}' and '{token2}'")
+            if self.debug:
+                print(f"Warning: could not apply next-to constraint between '{token1}' and '{token2}'")
 
     def apply_constraint_between(self, token1, token2, houses_between):
         a1 = self.find_attribute(token1)
@@ -226,22 +281,32 @@ class PuzzleSolver:
             cat2, attr2 = a2
             diff = self.model.NewIntVar(0, self.num_houses, f"between_{attr1}_{attr2}")
             self.model.AddAbsEquality(diff, self.var[cat1][attr1] - self.var[cat2][attr2])
+            # There are houses_between houses in between, so difference equals houses_between + 1.
             self.model.Add(diff == houses_between + 1)
+            if self.debug:
+                print(f"Added between constraint: |[{cat1}][{attr1}] - [{cat2}][{attr2}]| == {houses_between + 1}")
         else:
-            print(f"Warning: could not apply between constraint for '{token1}' and '{token2}' with {houses_between} houses in between")
+            if self.debug:
+                print(f"Warning: could not apply between constraint for '{token1}' and '{token2}' with {houses_between} houses in between")
 
     def apply_constraint_fixed(self, token, house_number):
         a1 = self.find_attribute(token)
         if a1:
             cat, attr = a1
             self.model.Add(self.var[cat][attr] == house_number)
+            if self.debug:
+                print(f"Added fixed constraint: [{cat}][{attr}] == {house_number}")
         else:
-            print(f"Warning: could not apply fixed constraint for '{token}' at house {house_number}")
+            if self.debug:
+                print(f"Warning: could not apply fixed constraint for '{token}' at house {house_number}")
 
     def process_clue(self, clue):
-        # Remove leading numbering (e.g. "1. ") and trim.
+        # Remove any leading numbering (e.g., "1. ") and trim the text.
         text = re.sub(r'^\d+\.\s*', '', clue).strip()
+        if self.debug:
+            print(f"Processing clue: {text}")
         ordinal_numbers = r"(?:\d+|first|second|third|fourth|fifth|sixth)"
+
         # Fixed house pattern.
         m_fixed = re.search(rf"(.+?) is in the ({ordinal_numbers}) house", text, re.IGNORECASE)
         if m_fixed:
@@ -294,7 +359,7 @@ class PuzzleSolver:
             self.apply_constraint_position(token1, ">", token2)
             return
 
-        # Next to.
+        # Next-to.
         m_next = re.search(r"(.+?) and (.+?) are next to each other", text, re.IGNORECASE)
         if m_next:
             token1 = m_next.group(1).strip()
@@ -302,8 +367,8 @@ class PuzzleSolver:
             self.apply_constraint_next_to(token1, token2)
             return
 
-        # Between pattern: also accepts number words.
-        m_between = re.search(rf"There are (\d+|one|two|three|four|five|six) houses? between (.+?) and (.+)", text, re.IGNORECASE)
+        # Between pattern: accepts both "There is" and "There are".
+        m_between = re.search(rf"There (?:are|is) (\d+|one|two|three|four|five|six) house(?:s)? between (.+?) and (.+)", text, re.IGNORECASE)
         if m_between:
             num_str = m_between.group(1).strip().lower()
             houses_between = int(num_str) if num_str.isdigit() else word_to_num.get(num_str)
@@ -312,16 +377,16 @@ class PuzzleSolver:
             self.apply_constraint_between(token1, token2, houses_between)
             return
 
-        # Equality pattern.
-        m_eq = re.search(r"(.+?) is the (.+)", text, re.IGNORECASE)
+        # Equality pattern: now accepts both "is" and "is the".
+        m_eq = re.search(r"(.+?) is(?: the)? (.+)", text, re.IGNORECASE)
         if m_eq:
             token1 = m_eq.group(1).strip()
             token2 = m_eq.group(2).strip()
             self.apply_constraint_equality(token1, token2)
             return
 
-        # Removed fallback equality (and spaCy fallback) in order to avoid adding ambiguous constraints.
-        print(f"Unprocessed clue: {text}")
+        if self.debug:
+            print(f"Unprocessed clue: {text}")
 
     def process_all_clues(self):
         for clue in self.clues:
@@ -340,11 +405,12 @@ class PuzzleSolver:
                             solution[house][cat] = attr
             return solution
         else:
+            if self.debug:
+                print("No solution found. The clues may be contradictory or incomplete.")
             return None
 
     def print_solution(self, solution):
         if solution:
-            # Build table with "House" and the shortened category names.
             headers = ["House"] + [shorten_category(cat) for cat in self.categories.keys()]
             table = []
             for house in sorted(solution.keys()):
@@ -352,7 +418,7 @@ class PuzzleSolver:
                 for cat in self.categories.keys():
                     row.append(solution[house].get(cat, ""))
                 table.append(row)
-            # Compute column widths.
+            # Determine column widths.
             col_widths = [max(len(str(row[i])) for row in ([headers] + table))
                           for i in range(len(headers))]
             header_line = " | ".join(str(headers[i]).ljust(col_widths[i]) for i in range(len(headers)))
@@ -365,8 +431,9 @@ class PuzzleSolver:
             print("No solution found.")
 
 def main():
-    parser = argparse.ArgumentParser(description="Refined Generic Logic Puzzle Solver")
+    parser = argparse.ArgumentParser(description="Refined Generic Logic Puzzle Solver with Debugging")
     parser.add_argument("puzzle_file", help="Path to the puzzle description text file")
+    parser.add_argument("--debug", action="store_true", help="Enable debug output")
     args = parser.parse_args()
     try:
         with open(args.puzzle_file, "r", encoding="utf-8") as f:
@@ -375,7 +442,7 @@ def main():
         print("Error reading file:", e)
         sys.exit(1)
 
-    solver_instance = PuzzleSolver(puzzle_text)
+    solver_instance = PuzzleSolver(puzzle_text, debug=args.debug)
     solver_instance.parse_puzzle()
     solver_instance.build_variables()
     solver_instance.process_all_clues()
