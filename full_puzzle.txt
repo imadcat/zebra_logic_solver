@@ -1,35 +1,34 @@
 There are 6 houses, numbered 1 to 6 from left to right, as seen from across the street. Each house is occupied by a different person. Each house has a unique attribute for each of the following characteristics:
-- Each person has a unique name: Eric, Bob, Alice, Peter, Arnold, Carol
-- They all have a unique favorite flower: daffodils, carnations, roses, tulips, iris, lilies
-- People have unique heights: very tall, super tall, average, short, very short, tall
-- Each person has a favorite color: blue, yellow, purple, red, green, white
-- Everyone has a unique favorite cigar: yellow monster, pall mall, prince, blue master, blends, dunhill
-- People use unique phone models: google pixel 6, iphone 13, xiaomi mi 11, samsung galaxy s21, huawei p50, oneplus 9
+- Each person has a unique name: Peter, Eric, Alice, Bob, Arnold, Carol
+- People have unique favorite book genres: mystery, fantasy, romance, historical fiction, science fiction, biography
+- Everyone has a favorite smoothie: cherry, desert, lime, watermelon, blueberry, dragonfruit
+- The people keep unique animals: fish, rabbit, bird, cat, horse, dog
+- People have unique favorite music genres: classical, hip hop, country, jazz, rock, pop
+- Everyone has a unique favorite cigar: prince, dunhill, blends, pall mall, blue master, yellow monster
 
 ### Clues:
-1. The person who uses an iPhone 13 is the person who loves white.
-2. Peter is the person whose favorite color is red.
-3. The Prince smoker is directly left of the person partial to Pall Mall.
-4. The person who smokes Blue Master and the Dunhill smoker are next to each other.
-5. The person who loves blue is the person who uses a Xiaomi Mi 11.
-6. The person who loves white is Alice.
-7. The person who uses a OnePlus 9 is somewhere to the left of Arnold.
-8. The person who is tall is the person who smokes Blue Master.
-9. The person who uses a Samsung Galaxy S21 is the Dunhill smoker.
-10. Bob is directly left of the person who is very short.
-11. The person who loves a bouquet of daffodils is Eric.
-12. The person who loves the boquet of iris is the person who uses a OnePlus 9.
-13. The person who uses a Huawei P50 is the person who is very short.
-14. The person who smokes many unique blends is directly left of Peter.
-15. The Prince smoker is not in the first house.
-16. The person who is very tall is the person who loves a bouquet of daffodils.
-17. The person who uses a Google Pixel 6 is not in the fifth house.
-18. The person who is tall is not in the third house.
-19. The person who uses a Huawei P50 is somewhere to the left of the person who uses a Samsung Galaxy S21.
-20. Arnold is somewhere to the left of the person who is short.
-21. The person who loves the vase of tulips is not in the first house.
-22. The person who loves the boquet of lilies is directly left of the person who loves yellow.
-23. Arnold is the person who loves purple.
-24. The person who uses a OnePlus 9 and the person who uses a Samsung Galaxy S21 are next to each other.
-25. The person who has an average height is not in the first house.
-26. The person who loves the rose bouquet is Alice.
+1. The person who smokes many unique blends is the person who loves fantasy books.
+2. The person who loves biography books is the Desert smoothie lover.
+3. There are two houses between the person who loves pop music and the person who loves country music.
+4. The rabbit owner is in the third house.
+5. Arnold is the bird keeper.
+6. The person who loves country music is in the fifth house.
+7. The person who loves mystery books is not in the first house.
+8. The person who drinks Lime smoothies is not in the third house.
+9. The fish enthusiast is somewhere to the right of the person who loves rock music.
+10. The Prince smoker is somewhere to the left of the person who likes Cherry smoothies.
+11. Bob is the cat lover.
+12. Eric is the person who likes Cherry smoothies.
+13. The person who smokes Yellow Monster is in the sixth house.
+14. The Prince smoker is the Dragonfruit smoothie lover.
+15. Carol is directly left of Arnold.
+16. The person who smokes Blue Master is directly left of the person who loves classical music.
+17. The person who loves classical music is the person who loves historical fiction books.
+18. The Dunhill smoker and the person who loves science fiction books are next to each other.
+19. The person who keeps horses is directly left of Peter.
+20. The Watermelon smoothie lover is the cat lover.
+21. The person who smokes many unique blends is directly left of the person who loves jazz music.
+22. The cat lover is in the first house.
+23. The Desert smoothie lover is the person who loves jazz music.
+24. The person who drinks Lime smoothies is directly left of the fish enthusiast.
+25. The person who smokes Blue Master is not in the fifth house.

@@ -27,7 +27,6 @@ def sanitize_token(text):
     Also strips extra punctuation.
     """
     text = text.lower()
-    # Remove common noise phrases.
     noise_phrases = [
         r'\bthe person\b',
         r'\bperson\b',
@@ -42,12 +41,22 @@ def sanitize_token(text):
     ]
     for phrase in noise_phrases:
         text = re.sub(phrase, '', text, flags=re.IGNORECASE)
-    # Remove articles to lessen noise.
     text = re.sub(r'\b(a|an|the)\b', '', text)
-    # Remove punctuation and extra whitespace.
     text = re.sub(r'[^a-z0-9 ]', ' ', text)
     text = re.sub(r'\s+', ' ', text)
     return text.strip()
+
+def shorten_category(category):
+    """
+    Returns the last word of the category string, lowercased with punctuation stripped.
+    Assumes that the key word is always the last word.
+    """
+    tokens = category.strip().split()
+    if tokens:
+        # Strip trailing punctuation such as commas or colons.
+        return tokens[-1].strip(" ,:").lower()
+    else:
+        return category.lower()
 
 class PuzzleSolver:
     def __init__(self, puzzle_text):
@@ -55,22 +64,16 @@ class PuzzleSolver:
         self.num_houses = None
         # Categories: key = bullet line text before colon, value = list of attributes.
         self.categories = {}
-        self.clues = []  # list of clues (strings)
+        self.clues = []  # list of clue strings
         # CP variables: self.var[category][attribute] = variable holding the assigned house number.
         self.var = {}
         self.model = cp_model.CpModel()
 
     def parse_puzzle(self):
-        # Identify number of houses from the text (default to 6 if not found).
         m = re.search(r"There are (\d+) houses", self.puzzle_text, re.IGNORECASE)
-        if m:
-            self.num_houses = int(m.group(1))
-        else:
-            self.num_houses = 6
+        self.num_houses = int(m.group(1)) if m else 6
 
-        # Parse categories.
-        # Expect bullet lines (starting with "-" or "*") of the form:
-        # - <Category text>: attribute1, attribute2, attribute3, ...
+        # Parse categories. Expect bullet lines starting with "-" or "*" followed by text before colon.
         cat_pattern = re.compile(r"^[-*]\s*(.*?):\s*(.+)$")
         for line in self.puzzle_text.splitlines():
             line = line.strip()
@@ -81,8 +84,7 @@ class PuzzleSolver:
                 attrs = [x.strip() for x in attr_line.split(",") if x.strip()]
                 self.categories[cat_label] = attrs
 
-        # Parse clues.
-        # Look for a line containing "### Clues:" then all subsequent non-empty lines are clues.
+        # Parse clues: uses "### Clues:" as separator and then reads subsequent non-empty lines.
         clues_section = False
         for line in self.puzzle_text.splitlines():
             if "### Clues:" in line:
@@ -94,7 +96,6 @@ class PuzzleSolver:
                     self.clues.append(clean)
 
     def build_variables(self):
-        # For every category (use full bullet text as key) create an int var for each attribute.
         for cat, attrs in self.categories.items():
             self.var[cat] = {}
             for attr in attrs:
@@ -102,10 +103,6 @@ class PuzzleSolver:
             self.model.AddAllDifferent(list(self.var[cat].values()))
 
     def find_attribute(self, token):
-        """
-        Find an attribute whose sanitized text appears as a whole word in the sanitized token.
-        Uses a longest–match heuristic and a simple singular/plural check. Returns (category, attribute) if found.
-        """
         token_san = sanitize_token(token)
         best = None
         best_len = 0
@@ -120,7 +117,6 @@ class PuzzleSolver:
                         best = (cat, attr)
                         best_len = len(attr_san)
                 else:
-                    # Allow simple singular/plural check.
                     if attr_san.endswith('s'):
                         alt = attr_san[:-1]
                     else:
@@ -208,7 +204,7 @@ class PuzzleSolver:
             self.model.AddAbsEquality(diff, self.var[cat1][attr1] - self.var[cat2][attr2])
             self.model.Add(diff == houses_between + 1)
         else:
-            print(f"Warning: could not apply between constraint between '{token1}' and '{token2}' with {houses_between} houses in between")
+            print(f"Warning: could not apply between constraint for '{token1}' and '{token2}' with {houses_between} houses in between")
 
     def apply_constraint_fixed(self, token, house_number):
         a1 = self.find_attribute(token)
@@ -225,7 +221,7 @@ class PuzzleSolver:
         if m_not:
             token = m_not.group(1).strip()
             num_str = m_not.group(2).strip().lower()
-            house_num = int(num_str) if num_str.isdigit() else ordinal_map.get(num_str, None)
+            house_num = int(num_str) if num_str.isdigit() else ordinal_map.get(num_str)
             if house_num is not None:
                 self.apply_constraint_inequality(token, house_num)
                 return
@@ -234,7 +230,7 @@ class PuzzleSolver:
         if m_fixed:
             token = m_fixed.group(1).strip()
             num_str = m_fixed.group(2).strip().lower()
-            house_num = int(num_str) if num_str.isdigit() else ordinal_map.get(num_str, None)
+            house_num = int(num_str) if num_str.isdigit() else ordinal_map.get(num_str)
             if house_num is not None:
                 self.apply_constraint_fixed(token, house_num)
                 return
@@ -325,24 +321,22 @@ class PuzzleSolver:
 
     def print_solution(self, solution):
         if solution:
-            # Build table with header and rows.
-            headers = ["House"] + list(self.categories.keys())
+            # Build table using "House" and the shortened category names.
+            headers = ["House"] + [shorten_category(cat) for cat in self.categories.keys()]
             table = []
             for house in sorted(solution.keys()):
                 row = [str(house)]
                 for cat in self.categories.keys():
                     row.append(solution[house].get(cat, ""))
                 table.append(row)
-            # Compute maximum width for each column.
+
+            # Compute column widths.
             col_widths = [max(len(str(row[i])) for row in ([headers] + table))
                           for i in range(len(headers))]
-            # Print header.
-            header_line = " | ".join(str(headers[i]).ljust(col_widths[i])
-                                       for i in range(len(headers)))
+            header_line = " | ".join(str(headers[i]).ljust(col_widths[i]) for i in range(len(headers)))
             separator_line = "-+-".join("-" * col_widths[i] for i in range(len(headers)))
             print(header_line)
             print(separator_line)
-            # Print each row.
             for row in table:
                 print(" | ".join(str(row[i]).ljust(col_widths[i])
                                    for i in range(len(headers))))
