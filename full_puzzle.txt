@@ -1,34 +1,33 @@
 There are 6 houses, numbered 1 to 6 from left to right, as seen from across the street. Each house is occupied by a different person. Each house has a unique attribute for each of the following characteristics:
-- Each person has a unique name: Eric, Arnold, Bob, Peter, Alice, Carol
-- People have unique heights: very tall, tall, average, short, super tall, very short
-- Each person has a unique birthday month: sept, may, jan, april, feb, mar
-- People have unique hair colors: blonde, red, black, auburn, gray, brown
-- People have unique favorite book genres: science fiction, romance, biography, mystery, fantasy, historical fiction
-- Each person has a unique type of pet: bird, hamster, fish, dog, cat, rabbit
+- Each person has a unique name: Alice, Carol, Bob, Peter, Eric, Arnold
+- They all have a unique favorite flower: lilies, tulips, roses, daffodils, iris, carnations
+- The people are of nationalities: norwegian, dane, swede, german, brit, chinese
+- Everyone has a favorite smoothie: cherry, watermelon, desert, dragonfruit, blueberry, lime
+- Each person has a unique hobby: photography, cooking, knitting, woodworking, painting, gardening
+- Each person has a unique type of pet: rabbit, hamster, fish, cat, bird, dog
 
 ### Clues:
-1. The person with an aquarium of fish is the person who loves mystery books.
-2. The person who has black hair is the person who owns a dog.
-3. The person who has gray hair is the person who loves science fiction books.
-4. The person who loves historical fiction books is somewhere to the left of the person who has black hair.
-5. The person who loves historical fiction books is directly left of the person who owns a rabbit.
-6. The person whose birthday is in February is the person who owns a dog.
-7. Bob is the person who keeps a pet bird.
-8. The person who keeps a pet bird is the person who loves romance books.
-9. Alice is directly left of the person who loves fantasy books.
-10. The person who owns a rabbit is directly left of the person who is very short.
-11. The person who is short is somewhere to the left of the person who is super tall.
-12. The person who has an average height is in the sixth house.
-13. The person who has red hair is not in the first house.
-14. The person who is very tall is somewhere to the right of the person who is super tall.
-15. There are two houses between the person who loves romance books and Eric.
-16. The person with an aquarium of fish is in the sixth house.
-17. The person who has blonde hair is the person who loves historical fiction books.
-18. The person who is tall is somewhere to the right of the person whose birthday is in February.
-19. The person who has auburn hair is Carol.
-20. The person with an aquarium of fish is the person whose birthday is in March.
-21. The person who loves science fiction books is directly left of the person with an aquarium of fish.
-22. The person whose birthday is in September is not in the first house.
-23. The person who loves biography books is directly left of the person who has a cat.
-24. The person whose birthday is in January is the person who loves science fiction books.
-25. Arnold is the person whose birthday is in May.
+1. The Swedish person is the person who loves cooking.
+2. The person who drinks Blueberry smoothies is Alice.
+3. The person who loves the rose bouquet is not in the sixth house.
+4. The photography enthusiast is somewhere to the right of the Dragonfruit smoothie lover.
+5. The person who loves cooking is the person who loves a bouquet of daffodils.
+6. The person who loves the boquet of lilies and the person who loves the boquet of iris are next to each other.
+7. The person who paints as a hobby is Alice.
+8. Arnold is somewhere to the right of the Watermelon smoothie lover.
+9. The woodworking hobbyist is somewhere to the right of the German.
+10. The woodworking hobbyist is somewhere to the left of the person who loves a bouquet of daffodils.
+11. The Dane is the Watermelon smoothie lover.
+12. The Dragonfruit smoothie lover is Peter.
+13. The person who drinks Lime smoothies is the woodworking hobbyist.
+14. There is one house between the Watermelon smoothie lover and the person who likes Cherry smoothies.
+15. The person who keeps a pet bird is the person who drinks Blueberry smoothies.
+16. The Desert smoothie lover is the person who enjoys gardening.
+17. The person with a pet hamster is in the fifth house.
+18. The person who owns a dog is the Norwegian.
+19. The person who has a cat is somewhere to the right of Bob.
+20. The British person is directly left of Carol.
+21. The person who loves the boquet of iris is Arnold.
+22. The German is somewhere to the right of the person who loves a carnations arrangement.
+23. Bob is the photography enthusiast.
+24. The person with an aquarium of fish is Arnold.

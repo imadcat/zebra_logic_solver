@@ -60,7 +60,10 @@ def sanitize_token(text):
 
 def normalize_token(token, candidate_key=None):
     """
-    If candidate_key is 'month', normalize full month names to their abbreviated versions.
+    Normalize tokens when candidate_key indicates a special category.
+    For "month": replace full month names with their abbreviated versions.
+    For "nationalities": convert adjectives like "swedish" to "swede",
+    "british" to "brit", and "danish" to "dane".
     """
     token_norm = token.lower()
     if candidate_key == "month":
@@ -81,11 +84,23 @@ def normalize_token(token, candidate_key=None):
         for full, abbr in month_map.items():
             if full in token_norm:
                 token_norm = token_norm.replace(full, abbr)
+    elif candidate_key == "nationalities":
+        nat_map = {
+            "swedish": "swede",
+            "british": "brit",
+            "danish": "dane"
+        }
+        for full, abbr in nat_map.items():
+            if full in token_norm:
+                token_norm = token_norm.replace(full, abbr)
     return token_norm
 
 def get_category_key(category):
     """
     Determines a unique key for a category based on its description.
+    For example, if the description mentions "name", "flower", or "birthday",
+    then the assigned keys will be "name", "flower", or "month".
+    Otherwise, we default to the last word.
     """
     cat_lower = category.lower()
     if "favorite" in cat_lower and "color" in cat_lower:
@@ -108,6 +123,8 @@ def get_category_key(category):
         return "models"
     if "birthday" in cat_lower or "month" in cat_lower:
         return "month"
+    if "nationalities" in cat_lower:
+        return "nationalities"
     tokens = cat_lower.split()
     return tokens[-1] if tokens else cat_lower
 
@@ -124,7 +141,7 @@ class PuzzleSolver:
         self.num_houses = None
         # Categories: key = full bullet–line text, value = list of attributes.
         self.categories = {}
-        # Mapping from full category descriptions to computed unique keys.
+        # Mapping from the full category description to a computed unique key.
         self.category_keys = {}
         self.clues = []  # List of clue strings.
         # CP variables: self.var[category][attribute] holds the house number.
@@ -132,8 +149,9 @@ class PuzzleSolver:
         self.model = cp_model.CpModel()
         self.debug = debug
 
-        # Mapping from category keys to extra keywords used in extraction.
+        # Extend the keywords with an entry for nationalities.
         self.category_keywords = {
+            "nationalities": ["swede", "norwegian", "german", "chinese", "dane", "brit", "danish", "swedish", "british"],
             "name": ["name"],
             "vacation": ["vacation", "trip", "break"],
             "occupation": ["occupation", "job"],
@@ -200,11 +218,11 @@ class PuzzleSolver:
                     print(f"Debug: Token '{token}' suggests category key '{candidate_key}' based on keywords {kws}.")
                 break
 
-        # If this is a birthday/month token, normalize it.
-        if candidate_key == "month":
+        # If the token belongs to a category needing normalization, do it.
+        if candidate_key in ["month", "nationalities"]:
             token_san = normalize_token(token_san, candidate_key)
             if self.debug:
-                print(f"Debug: Normalized token for month: '{token_san}'")
+                print(f"Debug: Normalized token for {candidate_key}: '{token_san}'")
 
         # Determine which categories to search.
         if candidate_key:
@@ -221,7 +239,7 @@ class PuzzleSolver:
         for cat, attrs in categories_to_search:
             for attr in attrs:
                 attr_san = sanitize_token(attr)
-                if candidate_key == "month":
+                if candidate_key in ["month", "nationalities"]:
                     attr_san = normalize_token(attr_san, candidate_key)
                 pattern = rf'\b{re.escape(attr_san)}\b'
                 if re.search(pattern, token_san):
@@ -234,20 +252,26 @@ class PuzzleSolver:
                         if len(attr_san) > best_len:
                             best = (cat, attr)
                             best_len = len(attr_san)
-        # Fallback: if no attribute was found for a month clue, explicitly search for abbreviated month values.
-        if best is None and candidate_key == "month":
+        # Fallback for month or nationalities if no match was found
+        if best is None and candidate_key in ["month", "nationalities"]:
             if self.debug:
-                print(f"Debug: Fallback for month: no match found in token '{token_san}'. Trying explicit month substrings.")
-            month_map = {
-                "jan": "jan", "feb": "feb", "mar": "mar",
-                "april": "april", "may": "may", "jun": "jun",
-                "jul": "jul", "aug": "aug", "sept": "sept",
-                "oct": "oct", "nov": "nov", "dec": "dec",
-            }
-            for key_abbr in month_map.values():
+                print(f"Debug: Fallback for {candidate_key}: no match found in token '{token_san}'. Trying explicit substrings.")
+            mapping = {}
+            if candidate_key == "month":
+                mapping = {
+                    "jan": "jan", "feb": "feb", "mar": "mar",
+                    "april": "april", "may": "may", "jun": "jun",
+                    "jul": "jul", "aug": "aug", "sept": "sept",
+                    "oct": "oct", "nov": "nov", "dec": "dec",
+                }
+            elif candidate_key == "nationalities":
+                mapping = {
+                    "swede": "swede", "norwegian": "norwegian", "german": "german",
+                    "chinese": "chinese", "dane": "dane", "brit": "brit"
+                }
+            for key_abbr in mapping.values():
                 if re.search(rf'\b{re.escape(key_abbr)}\b', token_san):
                     for cat, attrs in categories_to_search:
-                        # Check if the abbreviated month is one of the attributes.
                         for attr in attrs:
                             attr_san = normalize_token(sanitize_token(attr), candidate_key)
                             if attr_san == key_abbr:
@@ -283,7 +307,7 @@ class PuzzleSolver:
 
     def spacy_equality_extraction(self, text):
         """
-        Uses spaCy's dependency parse (and as fallback, NER) to extract two attribute phrases.
+        Uses spaCy's dependency parse (and as a fallback, NER) to extract two attribute phrases.
         """
         if nlp is None:
             return None, None
