@@ -1,5 +1,4 @@
 import re
-import sys
 import streamlit as st
 import pandas as pd
 from functools import lru_cache
@@ -26,7 +25,7 @@ EXTRA_WORDS_PATTERN = re.compile(r'\b(owner|lover|enthusiast)\b', re.IGNORECASE)
 NON_ALNUM_PATTERN = re.compile(r'[^a-z0-9 ]')
 MULTISPACE_PATTERN = re.compile(r'\s+')
 
-# Mapping for ordinal words (assumes up to six houses).
+# Mapping for ordinal words.
 ordinal_map = {
     "first": 1,
     "second": 2,
@@ -36,7 +35,7 @@ ordinal_map = {
     "sixth": 6
 }
 
-# Mapping for number words used in between–clues.
+# Mapping for number words in between–clues.
 word_to_num = {
     "one": 1,
     "two": 2,
@@ -496,7 +495,7 @@ class PuzzleSolver:
 
     def solve(self):
         solver = cp_model.CpSolver()
-        # Use all available cores (0 means use all available)
+        # Use all available cores (0 means all available)
         solver.parameters.num_search_workers = 0
         status = solver.Solve(self.model)
         if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
@@ -528,31 +527,35 @@ class PuzzleSolver:
             return None
 
 # Streamlit UI
-st.title("Generic Logic Puzzle Solver")
-
+st.title("Zebra Logic Puzzle Solver")
+st.subheader("🦓 ZebraLogic: Benchmarking the Logical Reasoning Ability of Language Models")
 st.markdown("""
-Enter your puzzle description in the text area below.  
-The puzzle should include category definitions (each on a new bullet line) and clues (after the line '### Clues:').
+Copy the Zebra Logic Puzzles description [from the huggingface site](https://huggingface.co/spaces/allenai/ZebraLogic), and paste it below.
 """)
 
 puzzle_text = st.text_area("Puzzle Input", height=300)
 show_debug = st.checkbox("Show Debug Output", value=False)
 
-if st.button("Solve Puzzle") and puzzle_text:
+# Use session_state to ensure the solution is computed only once per click.
+if "puzzle_solved" not in st.session_state:
+    st.session_state["puzzle_solved"] = False
+
+if st.button("Solve Puzzle") or st.session_state["puzzle_solved"]:
+    # Indicate that we've clicked the button
+    st.session_state["puzzle_solved"] = True
+
     solver_instance = PuzzleSolver(puzzle_text, debug=show_debug)
     solver_instance.parse_puzzle()
     solver_instance.build_variables()
     solver_instance.process_all_clues()
     
-    st.subheader("Parsed Attributes (Categories & Their Attributes)")
-    # Display each category as a line with bullet list
-    for cat, attrs in solver_instance.categories.items():
-        st.markdown(f"**{cat}**: {', '.join(attrs)}")
+    # st.subheader("Parsed Attributes (Categories & Their Attributes)")
+    # for cat, attrs in solver_instance.categories.items():
+    #     st.markdown(f"**{cat}**: {', '.join(attrs)}")
 
-    st.subheader("Parsed Clues")
-    # Display each clue on its own numbered line
-    for i, clue in enumerate(solver_instance.clues, start=1):
-        st.markdown(f"{i}. {clue}")
+    # st.subheader("Parsed Clues")
+    # for i, clue in enumerate(solver_instance.clues, start=1):
+    #     st.markdown(f"{i}. {clue}")
     
     solution = solver_instance.solve()
     st.subheader("Solution Table")
