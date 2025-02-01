@@ -495,8 +495,8 @@ class PuzzleSolver:
 
     def solve(self):
         solver = cp_model.CpSolver()
-        # Use all available cores (0 means all available)
-        solver.parameters.num_search_workers = 0
+        # Use all available cores (0 means all available, 1 means single core for deployment to streamlit community cloud)
+        solver.parameters.num_search_workers = 1
         status = solver.Solve(self.model)
         if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
             solution = {}
