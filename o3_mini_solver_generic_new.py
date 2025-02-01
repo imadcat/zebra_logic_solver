@@ -61,29 +61,35 @@ def sanitize_token(text):
     text = re.sub(r'\s+', ' ', text)
     return text.strip()
 
+def get_category_key(category):
+    """
+    Determines a unique key for a category based on its description.
+    This mapping is configurable—you can adjust or add more rules as needed.
+    """
+    cat_lower = category.lower()
+    if "favorite" in cat_lower and "color" in cat_lower:
+        return "favorite_color"
+    if "hair" in cat_lower:
+        return "hair_color"
+    if "name" in cat_lower:
+        return "name"
+    if "vacation" in cat_lower:
+        return "vacation"
+    if "occupation" in cat_lower:
+        return "occupation"
+    if "flower" in cat_lower:
+        return "flower"
+    # fallback: default to the last word
+    tokens = cat_lower.split()
+    return tokens[-1] if tokens else cat_lower
+
 def shorten_category(category):
     """
-    Returns a short, distinct key for the category.
-    
-    Rather than simply taking the last word of the category description,
-    this function applies heuristics based on keywords.
-    
-    For example:
-      - "Each person has a unique favorite color: blue, red, green, yellow, purple, white" 
-         returns "favorite color"
-      - "People have unique hair colors" returns "hair color"
+    Returns a short, distinct header for the category in the output table.
     """
-    category_lower = category.lower()
-    if "hair" in category_lower:
-        return "hair color"
-    elif "favorite" in category_lower and "color" in category_lower:
-        return "favorite color"
-    else:
-        tokens = category.strip().split()
-        if tokens:
-            return tokens[-1].strip(" ,:").lower()
-        else:
-            return category.lower()
+    key = get_category_key(category)
+    # Optionally, you can define pretty–printed versions here.
+    return key.replace('_', ' ')
 
 class PuzzleSolver:
     def __init__(self, puzzle_text, debug=False):
@@ -91,11 +97,24 @@ class PuzzleSolver:
         self.num_houses = None
         # Categories: key = full bullet–line text, value = list of attributes.
         self.categories = {}
+        # A mapping from full category description to its computed unique key.
+        self.category_keys = {}
         self.clues = []  # List of clue strings.
         # CP variables: self.var[category][attribute] holds the house number for that attribute.
         self.var = {}
         self.model = cp_model.CpModel()
         self.debug = debug
+
+        # A mapping from category keys to an extra set of keywords.
+        # These keywords will be used to restrict search in find_attribute.
+        self.category_keywords = {
+            "favorite_color": ["favorite", "color"],
+            "hair_color": ["hair"],
+            "name": ["name"],
+            "vacation": ["vacation", "trip", "break"],
+            "occupation": ["occupation", "job"],
+            "flower": ["flower", "roses", "lilies", "tulips", "iris", "daffodils", "carnations"]
+        }
 
     def parse_puzzle(self):
         # Identify number of houses.
@@ -114,8 +133,10 @@ class PuzzleSolver:
                 attr_line = m.group(2).strip()
                 attrs = [x.strip() for x in attr_line.split(",") if x.strip()]
                 self.categories[cat_label] = attrs
+                self.category_keys[cat_label] = get_category_key(cat_label)
                 if self.debug:
                     print(f"Parsed category: '{cat_label}' with attributes {attrs}")
+                    print(f"Assigned key for category: {self.category_keys[cat_label]}")
 
         # Parse clues: all nonempty lines after a line containing "### Clues:".
         clues_section = False
@@ -144,23 +165,33 @@ class PuzzleSolver:
     def find_attribute(self, token):
         """
         Find an attribute whose sanitized text appears as a whole word in the token.
+        First, determine (if possible) a candidate category key based on the token.
+        Then restrict the search to those categories that have that key.
         Uses a longest-match heuristic with a simple singular/plural check.
-        If the token includes the keyword "hair", restrict the search to categories that mention "hair".
         Returns (category, attribute) if found.
         """
         token_san = sanitize_token(token)
-        hair_hint = "hair" in token_san
-        best = None
-        best_len = 0
+        candidate_key = None
+        # Try to decide which category key we are dealing with by inspecting the token.
+        for key, kws in self.category_keywords.items():
+            if any(kw in token_san for kw in kws):
+                candidate_key = key
+                if self.debug:
+                    print(f"Debug: Token '{token}' suggests category key '{candidate_key}' based on keywords {kws}.")
+                break
 
-        # If "hair" is mentioned, restrict search to categories with "hair" in their name.
-        if hair_hint:
-            categories_to_search = [(cat, attrs) for cat, attrs in self.categories.items() if "hair" in cat.lower()]
+        # Restrict search to categories that have the matching key, if determined.
+        if candidate_key:
+            categories_to_search = [(cat, attrs) for cat, attrs in self.categories.items()
+                                      if self.category_keys.get(cat) == candidate_key]
             if self.debug:
-                print(f"Debug: Token '{token}' indicates hair; searching in categories: {[cat for cat, _ in categories_to_search]}")
+                cats = [cat for cat, _ in categories_to_search]
+                print(f"Debug: Restricted search to categories: {cats}")
         else:
             categories_to_search = self.categories.items()
 
+        best = None
+        best_len = 0
         for cat, attrs in categories_to_search:
             for attr in attrs:
                 attr_san = sanitize_token(attr)
@@ -179,10 +210,10 @@ class PuzzleSolver:
                         if len(attr_san) > best_len:
                             best = (cat, attr)
                             best_len = len(attr_san)
-        # Fallback to global search if nothing was found in the restricted search.
-        if best is None and hair_hint:
+        # Fallback: if nothing was found using the restricted search, look globally.
+        if best is None and candidate_key is not None:
             if self.debug:
-                print(f"Debug: No attribute found in hair categories for token '{token}'; falling back to full search.")
+                print(f"Debug: No attribute found in candidate categories for token '{token}'; falling back to global search.")
             for cat, attrs in self.categories.items():
                 for attr in attrs:
                     attr_san = sanitize_token(attr)
@@ -431,7 +462,7 @@ class PuzzleSolver:
             print("No solution found.")
 
 def main():
-    parser = argparse.ArgumentParser(description="Refined Generic Logic Puzzle Solver with Debugging")
+    parser = argparse.ArgumentParser(description="Robust Generic Logic Puzzle Solver with Configurable Category Keys")
     parser.add_argument("puzzle_file", help="Path to the puzzle description text file")
     parser.add_argument("--debug", action="store_true", help="Enable debug output")
     args = parser.parse_args()

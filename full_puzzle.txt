@@ -27,7 +27,7 @@ There are 6 houses, numbered 1 to 6 from left to right, as seen from across the 
 18. The person whose favorite color is red is directly left of the person who prefers city breaks.
 19. The person who prefers city breaks is somewhere to the right of the person who has blonde hair.
 20. There is one house between Alice and Bob.
-21. The person who loves the rose is directly left of the person who is a nurse.
+21. The person who loves the rose bouquet is directly left of the person who is a nurse.
 22. The person whose favorite color is green is in the fourth house.
 23. The person who loves beach vacations is somewhere to the left of the person who has red hair.
 24. The person who has black hair is Alice.
