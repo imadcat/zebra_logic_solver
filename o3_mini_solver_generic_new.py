@@ -33,7 +33,8 @@ word_to_num = {
 
 def sanitize_token(text):
     """
-    Lowercase the text, remove common noise phrases and extra punctuation.
+    Lowercase the text, remove common noise phrases,
+    extra punctuation, and non-informative words like 'owner', 'lover', 'enthusiast'.
     """
     text = text.lower()
     noise_phrases = [
@@ -54,6 +55,8 @@ def sanitize_token(text):
     for phrase in noise_phrases:
         text = re.sub(phrase, '', text, flags=re.IGNORECASE)
     text = re.sub(r'\b(a|an|the)\b', '', text)
+    # Remove extra non-informative words
+    text = re.sub(r'\b(owner|lover|enthusiast)\b', '', text)
     text = re.sub(r'[^a-z0-9 ]', ' ', text)
     text = re.sub(r'\s+', ' ', text)
     return text.strip()
@@ -108,9 +111,10 @@ def lemmatize_text(text):
 def get_category_key(category):
     """
     Determines a unique key for a category based on its description.
-    For example, if the description mentions "name", "flower", "smoothie", "hobby" or "pet",
-    then the assigned keys will be "name", "flower", "smoothie", "hobby", or "pet".
-    For "birthday" or "month", the key will be "month", and for "nationalities" the key is "nationalities".
+    For example, if the description mentions "name", "flower", "hobby", etc.,
+    then the assigned keys will be "name", "flower", "hobby", etc.
+    For "birthday" or "month", the key will be "month", and for "nationalities", the key is "nationalities".
+    For the animals/pet category, if the description contains either term, we return "animals".
     Otherwise, we default to the last word.
     """
     cat_lower = category.lower()
@@ -132,8 +136,8 @@ def get_category_key(category):
         return "smoothie"
     if "hobby" in cat_lower:
         return "hobby"
-    if "pet" in cat_lower:
-        return "pet"
+    if "pet" in cat_lower or "animal" in cat_lower:
+        return "animals"
     if "birthday" in cat_lower or "month" in cat_lower:
         return "month"
     if "nationalities" in cat_lower:
@@ -162,7 +166,8 @@ class PuzzleSolver:
         self.model = cp_model.CpModel()
         self.debug = debug
 
-        # Extend the keywords with an entry for various categories.
+        # Extend the keywords with entries for various categories.
+        # Both "pet" and "animals" keywords are provided, but we'll later unify them.
         self.category_keywords = {
             "nationalities": ["swede", "norwegian", "german", "chinese", "dane", "brit", "danish", "swedish", "british"],
             "name": ["name"],
@@ -174,7 +179,8 @@ class PuzzleSolver:
             "hair_color": ["hair"],
             "month": ["month", "birthday", "birth"],
             "hobby": ["photography", "cooking", "knitting", "woodworking", "paints", "painting", "gardening"],
-            "pet": ["rabbit", "hamster", "fish", "cat", "bird", "dog"]
+            "pet": ["rabbit", "hamster", "fish", "cat", "bird", "dog"],
+            "animals": ["rabbit", "dog", "horse", "fish", "bird", "cat"]
         }
 
     def parse_puzzle(self):
@@ -223,10 +229,8 @@ class PuzzleSolver:
         """
         Try to match an attribute within the token.
         Uses the configured keywords and a longest-match heuristic.
-        Now we also attempt to use lemmatization (if spaCy is available) and custom mapping
-        for hobby-related words (e.g. mapping 'paints' or 'paint' to 'painting').
+        Also uses lemmatization, and—for hobby clues—maps any variant of 'paint' to 'painting'.
         """
-        # Sanitize the input token.
         token_san = sanitize_token(token)
         candidate_key = None
         for key, kws in self.category_keywords.items():
@@ -236,20 +240,23 @@ class PuzzleSolver:
                     print(f"Debug: Token '{token}' suggests category key '{candidate_key}' based on keywords {kws}.")
                 break
 
-        # Use lemmatization to help with variations.
-        token_lemmatized = token_san
+        # Unify candidate keys for animal-related clues.
+        if candidate_key == "pet":
+            candidate_key = "animals"
+
+        # Use lemmatization to help with matching variations.
         token_lemmatized = lemmatize_text(token_san)
         if self.debug:
             print(f"Debug: Lemmatized token for '{token}': '{token_lemmatized}'")
 
-        # For hobby clues, map any variant of 'paint' to 'painting'
+        # For hobby category, adjust any 'paint' variation to 'painting'
         if candidate_key == "hobby":
             if "paint" in token_lemmatized:
                 token_lemmatized = token_lemmatized.replace("paint", "painting")
                 if self.debug:
                     print(f"Debug: Adjusted hobby token to '{token_lemmatized}' for proper matching.")
 
-        # Apply normalization if the candidate belongs to month or nationalities.
+        # If candidate_key requires normalization
         if candidate_key in ["month", "nationalities"]:
             token_san = normalize_token(token_san, candidate_key)
             if self.debug:
@@ -267,7 +274,7 @@ class PuzzleSolver:
 
         best = None
         best_len = 0
-        # Check both the sanitized and the lemmatized forms for matching.
+        # Check matching in both sanitized and lemmatized forms.
         for cat, attrs in categories_to_search:
             for attr in attrs:
                 attr_san = sanitize_token(attr)
@@ -279,13 +286,12 @@ class PuzzleSolver:
                         best = (cat, attr)
                         best_len = len(attr_san)
                 else:
-                    # Try an alternate pattern that handles plural forms.
                     alt = attr_san[:-1] if attr_san.endswith('s') else attr_san + 's'
                     if re.search(rf'\b{re.escape(alt)}\b', token_san) or re.search(rf'\b{re.escape(alt)}\b', token_lemmatized):
                         if len(attr_san) > best_len:
                             best = (cat, attr)
                             best_len = len(attr_san)
-        # Fallback for months or nationalities if no match was found.
+        # Fallback for month or nationalities if no match was found.
         if best is None and candidate_key in ["month", "nationalities"]:
             if self.debug:
                 print(f"Debug: Fallback for {candidate_key}: no match found in token '{token_san}'. Trying explicit substrings.")
@@ -295,7 +301,7 @@ class PuzzleSolver:
                     "jan": "jan", "feb": "feb", "mar": "mar",
                     "april": "april", "may": "may", "jun": "jun",
                     "jul": "jul", "aug": "aug", "sept": "sept",
-                    "oct": "oct", "nov": "nov", "dec": "dec",
+                    "oct": "oct", "nov": "nov", "dec": "dec"
                 }
             elif candidate_key == "nationalities":
                 mapping = {
@@ -340,12 +346,11 @@ class PuzzleSolver:
 
     def spacy_equality_extraction(self, text):
         """
-        Uses spaCy's dependency parse (and as a fallback, NER) to extract two attribute phrases.
+        Use spaCy's dependency parse (and fallback to NER) to extract two attribute phrases.
         """
         if nlp is None:
             return None, None
         doc = nlp(text)
-        # Look for a copular construction (root verb "be")
         for token in doc:
             if token.lemma_ == "be" and token.dep_ == "ROOT":
                 subj = None
@@ -359,7 +364,6 @@ class PuzzleSolver:
                     subject_span = doc[subj.left_edge.i : subj.right_edge.i+1].text
                     attr_span = doc[attr.left_edge.i : attr.right_edge.i+1].text
                     return subject_span, attr_span
-        # Fallback: return the first two named entities found.
         ents = list(doc.ents)
         if len(ents) >= 2:
             return ents[0].text, ents[1].text
