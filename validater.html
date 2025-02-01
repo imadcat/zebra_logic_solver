@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Puzzle Validation & Highlight</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f9f9f9;
+      color: #333;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      background: #fff;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px 12px;
+      text-align: center;
+    }
+    th {
+      background-color: #f0f0f0;
+    }
+    .solution-cell.highlight {
+      background-color: #ffeb3b; /* Sunlight yellow highlight */
+      transition: background-color 0.3s;
+    }
+    .satisfied {
+      background-color: #d4edda;
+      color: #155724;
+      font-weight: bold;
+    }
+    .unsatisfied {
+      background-color: #f8d7da;
+      color: #721c24;
+      font-weight: bold;
+    }
+    tr.clue-row {
+      cursor: pointer;
+    }
+    @media (max-width: 600px) {
+      table, th, td {
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Puzzle Validation & Clue Highlighting</h1>
+
+  <h2>Solution Table</h2>
+  <table id="solution-table">
+    <thead>
+      <tr>
+        <th>House</th>
+        <th>Person</th>
+        <th>Height</th>
+        <th>Drink</th>
+        <th>Color</th>
+        <th>Style</th>
+        <th>Flower</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- House 1 -->
+      <tr>
+        <td id="house1-house" class="solution-cell">House 1</td>
+        <td id="house1-person" class="solution-cell">Alice</td>
+        <td id="house1-height" class="solution-cell">Average</td>
+        <td id="house1-drink" class="solution-cell">Water</td>
+        <td id="house1-color" class="solution-cell">Yellow</td>
+        <td id="house1-style" class="solution-cell">Victorian</td>
+        <td id="house1-flower" class="solution-cell">Lilies</td>
+      </tr>
+      <!-- House 2 -->
+      <tr>
+        <td id="house2-house" class="solution-cell">House 2</td>
+        <td id="house2-person" class="solution-cell">Arnold</td>
+        <td id="house2-height" class="solution-cell">Tall</td>
+        <td id="house2-drink" class="solution-cell">Milk</td>
+        <td id="house2-color" class="solution-cell">Red</td>
+        <td id="house2-style" class="solution-cell">Colonial</td>
+        <td id="house2-flower" class="solution-cell">Daffodils</td>
+      </tr>
+      <!-- House 3 -->
+      <tr>
+        <td id="house3-house" class="solution-cell">House 3</td>
+        <td id="house3-person" class="solution-cell">Carol</td>
+        <td id="house3-height" class="solution-cell">Short</td>
+        <td id="house3-drink" class="solution-cell">Boba tea</td>
+        <td id="house3-color" class="solution-cell">White</td>
+        <td id="house3-style" class="solution-cell">Mediterranean</td>
+        <td id="house3-flower" class="solution-cell">Tulips</td>
+      </tr>
+      <!-- House 4 -->
+      <tr>
+        <td id="house4-house" class="solution-cell">House 4</td>
+        <td id="house4-person" class="solution-cell">Eric</td>
+        <td id="house4-height" class="solution-cell">Very tall</td>
+        <td id="house4-drink" class="solution-cell">Root beer</td>
+        <td id="house4-color" class="solution-cell">Blue</td>
+        <td id="house4-style" class="solution-cell">Modern</td>
+        <td id="house4-flower" class="solution-cell">Iris</td>
+      </tr>
+      <!-- House 5 -->
+      <tr>
+        <td id="house5-house" class="solution-cell">House 5</td>
+        <td id="house5-person" class="solution-cell">Peter</td>
+        <td id="house5-height" class="solution-cell">Super tall</td>
+        <td id="house5-drink" class="solution-cell">Tea</td>
+        <td id="house5-color" class="solution-cell">Green</td>
+        <td id="house5-style" class="solution-cell">Craftsman</td>
+        <td id="house5-flower" class="solution-cell">Carnations</td>
+      </tr>
+      <!-- House 6 -->
+      <tr>
+        <td id="house6-house" class="solution-cell">House 6</td>
+        <td id="house6-person" class="solution-cell">Bob</td>
+        <td id="house6-height" class="solution-cell">Very short</td>
+        <td id="house6-drink" class="solution-cell">Coffee</td>
+        <td id="house6-color" class="solution-cell">Purple</td>
+        <td id="house6-style" class="solution-cell">Ranch</td>
+        <td id="house6-flower" class="solution-cell">Roses</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Clue Validation</h2>
+  <table id="clue-table">
+    <thead>
+      <tr>
+        <th>Clue No.</th>
+        <th>Clue Description</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Each row has a data-clue attribute -->
+      <tr class="clue-row" data-clue="1">
+        <td>1</td>
+        <td>Eric is not in House 2.</td>
+        <td class="satisfied">&#10003; Satisfied</td>
+      </tr>
+      <tr class="clue-row" data-clue="2">
+        <td>2</td>
+        <td>The coffee drinker is somewhere right of the Victorian house.</td>
+        <td class="satisfied">&#10003; Satisfied</td>
+      </tr>
+      <tr class="clue-row" data-clue="3">
+        <td>3</td>
+        <td>The very tall person is immediately left of the Craftsman house.</td>
+        <td class="satisfied">&#10003; Satisfied</td>
+      </tr>
+      <tr class="clue-row" data-clue="4">
+        <td>4</td>
+        <td>The Colonial house is paired with the milk drinker.</td>
+        <td class="satisfied">&#10003; Satisfied</td>
+      </tr>
+      <tr class="clue-row" data-clue="5">
+        <td>5</td>
+        <td>The root beer lover is immediately left of the green-lover.</td>
+        <td class="satisfied">&#10003; Satisfied</td>
+      </tr>
+      <tr class="clue-row" data-clue="6">
+        <td>6</td>
+        <td>The yellow lover also loves lilies.</td>
+        <td class="satisfied">&#10003; Satisfied</td>
+      </tr>
+      <tr class="clue-row" data-clue="7">
+        <td>7</td>
+        <td>Arnold’s favorite color is red.</td>
+        <td class="satisfied">&#10003; Satisfied</td>
+      </tr>
+      <tr class="clue-row" data-clue="8">
+        <td>8</td>
+        <td>Bob loves roses.</td>
+        <td class="satisfied">&#10003; Satisfied</td>
+      </tr>
+      <tr class="clue-row" data-clue="9">
+        <td>9</td>
+        <td>The very tall person is the root beer drinker.</td>
+        <td class="satisfied">&#10003; Satisfied</td>
+      </tr>
+      <tr class="clue-row" data-clue="10">
+        <td>10</td>
+        <td>Alice is left of the daffodils lover.</td>
+        <td class="satisfied">&#10003; Satisfied</td>
+      </tr>
+      <tr class="clue-row" data-clue="11">
+        <td>11</td>
+        <td>The boba tea drinker is Carol.</td>
+        <td class="satisfied">&#10003; Satisfied</td>
+      </tr>
+      <tr class="clue-row" data-clue="12">
+        <td>12</td>
+        <td>One house between the Ranch house and the iris-lover.</td>
+        <td class="satisfied">&#10003; Satisfied</td>
+      </tr>
+      <tr class="clue-row" data-clue="13">
+        <td>13</td>
+        <td>The tea drinker is the super tall person who loves carnations.</td>
+        <td class="satisfied">&#10003; Satisfied</td>
+      </tr>
+      <tr class="clue-row" data-clue="14">
+        <td>14</td>
+        <td>Carol lives in a Mediterranean-style house.</td>
+        <td class="satisfied">&#10003; Satisfied</td>
+      </tr>
+      <tr class="clue-row" data-clue="15">
+        <td>15</td>
+        <td>The daffodils are in House 2.</td>
+        <td class="satisfied">&#10003; Satisfied</td>
+      </tr>
+      <tr class="clue-row" data-clue="16">
+        <td>16</td>
+        <td>The tall person and the tulips lover are neighbors.</td>
+        <td class="satisfied">&#10003; Satisfied</td>
+      </tr>
+      <tr class="clue-row" data-clue="17">
+        <td>17</td>
+        <td>Carol is left of the iris-lover.</td>
+        <td class="satisfied">&#10003; Satisfied</td>
+      </tr>
+      <tr class="clue-row" data-clue="18">
+        <td>18</td>
+        <td>The average height person is immediately left of Arnold.</td>
+        <td class="satisfied">&#10003; Satisfied</td>
+      </tr>
+      <tr class="clue-row" data-clue="19">
+        <td>19</td>
+        <td>The super tall person and Eric are neighbors.</td>
+        <td class="satisfied">&#10003; Satisfied</td>
+      </tr>
+      <tr class="clue-row" data-clue="20">
+        <td>20</td>
+        <td>Tulips are right of the lilies.</td>
+        <td class="satisfied">&#10003; Satisfied</td>
+      </tr>
+      <tr class="clue-row" data-clue="21">
+        <td>21</td>
+        <td>The super tall person is the tea drinker.</td>
+        <td class="satisfied">&#10003; Satisfied</td>
+      </tr>
+      <tr class="clue-row" data-clue="22">
+        <td>22</td>
+        <td>Carol is short.</td>
+        <td class="satisfied">&#10003; Satisfied</td>
+      </tr>
+      <tr class="clue-row" data-clue="23">
+        <td>23</td>
+        <td>The coffee drinker loves purple.</td>
+        <td class="satisfied">&#10003; Satisfied</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <script>
+    // Mapping from clue number to the array of solution cell IDs to highlight.
+    const clueMapping = {
+      "1": ["house2-person", "house4-person"],
+      "2": ["house6-drink", "house1-style"],
+      "3": ["house4-height", "house5-style"],
+      "4": ["house2-style", "house2-drink"],
+      "5": ["house4-drink", "house5-color"],
+      "6": ["house1-color", "house1-flower"],
+      "7": ["house2-person", "house2-color"],
+      "8": ["house6-person", "house6-flower"],
+      "9": ["house4-height", "house4-drink"],
+      "10": ["house1-person", "house2-flower"],
+      "11": ["house3-drink", "house3-person"],
+      "12": ["house6-style", "house4-flower"],
+      "13": ["house5-drink", "house5-height", "house5-flower"],
+      "14": ["house3-person", "house3-style"],
+      "15": ["house2-flower"],
+      "16": ["house2-height", "house3-flower"],
+      "17": ["house3-person", "house4-flower"],
+      "18": ["house1-height", "house2-person"],
+      "19": ["house5-height", "house4-person"],
+      "20": ["house3-flower", "house1-flower"],
+      "21": ["house5-height", "house5-drink"],
+      "22": ["house3-person", "house3-height"],
+      "23": ["house6-drink", "house6-color"]
+    };
+
+    // Function to remove the highlight class from all solution cells
+    function clearHighlights() {
+      const cells = document.querySelectorAll('.solution-cell');
+      cells.forEach(cell => cell.classList.remove('highlight'));
+    }
+
+    // Add click event listeners to each clue row.
+    document.querySelectorAll('.clue-row').forEach(row => {
+      row.addEventListener('click', function() {
+        // Clear the current highlights.
+        clearHighlights();
+
+        // Get the clue number from the data attribute.
+        const clueNum = this.getAttribute('data-clue');
+        // Lookup affected cell IDs.
+        const cellIDs = clueMapping[clueNum] || [];
+
+        // Highlight each affected cell.
+        cellIDs.forEach(id => {
+          const cell = document.getElementById(id);
+          if (cell) {
+            cell.classList.add('highlight');
+          }
+        });
+      });
+    });
+  </script>
+</body>
+</html>

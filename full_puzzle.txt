@@ -1,0 +1,35 @@
+There are 6 houses, numbered 1 to 6 from left to right, as seen from across the street. Each house is occupied by a different person. Each house has a unique attribute for each of the following characteristics:
+- Each person has a unique name: Eric, Bob, Alice, Peter, Arnold, Carol
+- They all have a unique favorite flower: daffodils, carnations, roses, tulips, iris, lilies
+- People have unique heights: very tall, super tall, average, short, very short, tall
+- Each person has a favorite color: blue, yellow, purple, red, green, white
+- Everyone has a unique favorite cigar: yellow monster, pall mall, prince, blue master, blends, dunhill
+- People use unique phone models: google pixel 6, iphone 13, xiaomi mi 11, samsung galaxy s21, huawei p50, oneplus 9
+
+### Clues:
+1. The person who uses an iPhone 13 is the person who loves white.
+2. Peter is the person whose favorite color is red.
+3. The Prince smoker is directly left of the person partial to Pall Mall.
+4. The person who smokes Blue Master and the Dunhill smoker are next to each other.
+5. The person who loves blue is the person who uses a Xiaomi Mi 11.
+6. The person who loves white is Alice.
+7. The person who uses a OnePlus 9 is somewhere to the left of Arnold.
+8. The person who is tall is the person who smokes Blue Master.
+9. The person who uses a Samsung Galaxy S21 is the Dunhill smoker.
+10. Bob is directly left of the person who is very short.
+11. The person who loves a bouquet of daffodils is Eric.
+12. The person who loves the boquet of iris is the person who uses a OnePlus 9.
+13. The person who uses a Huawei P50 is the person who is very short.
+14. The person who smokes many unique blends is directly left of Peter.
+15. The Prince smoker is not in the first house.
+16. The person who is very tall is the person who loves a bouquet of daffodils.
+17. The person who uses a Google Pixel 6 is not in the fifth house.
+18. The person who is tall is not in the third house.
+19. The person who uses a Huawei P50 is somewhere to the left of the person who uses a Samsung Galaxy S21.
+20. Arnold is somewhere to the left of the person who is short.
+21. The person who loves the vase of tulips is not in the first house.
+22. The person who loves the boquet of lilies is directly left of the person who loves yellow.
+23. Arnold is the person who loves purple.
+24. The person who uses a OnePlus 9 and the person who uses a Samsung Galaxy S21 are next to each other.
+25. The person who has an average height is not in the first house.
+26. The person who loves the rose bouquet is Alice.
