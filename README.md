@@ -1,4 +1,4 @@
-This is a python solver of the [Zebra Logic Puzzles](https://huggingface.co/spaces/allenai/ZebraLogic)
+This is a python solver of the [Zebra Logic Puzzles](https://huggingface.co/spaces/allenai/ZebraLogic) using linear programming, NLP and regular expression
 <img src="https://github.com/user-attachments/assets/9de6d464-c265-4aa7-a5e8-0031877e33ed" width="75%">
 
 ### Install
